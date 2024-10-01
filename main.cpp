@@ -6,10 +6,12 @@
 
 
 int main() {
-    int  mySocketFileDescriptor = socket(AF_INET, SOCK_STREAM, 0);
-    std::cout << "\n" << "The file descriptor is: " << mySocketFileDescriptor << "\n";
+    int  fd = socket(AF_INET, SOCK_STREAM, 0);
+    std::cout << "\n" << "The file descriptor is: " << fd << std::endl;
 
-    bind(3, sockaddr )
+    std::string addr, len;
 
-
+    int bind(fd, addr, len);
 }
+
+
