@@ -15,6 +15,7 @@
 #pragma comment(lib, "Ws2_32.lib") // tells linker this library file is needed
 WSADATA wsaData;
 struct addrinfo* result = NULL; // intializing pointer variable to NULL called result
+struct addrinfo hints;
 int iResult;
 
 
@@ -36,16 +37,33 @@ void printSocketCreatedSuccess() {
     std::cout << "Socket bound with ai_protocol: " << result->ai_protocol << std::endl;
 }
 
+
+// int configureSocketHints() {
+//     struct addrinfo hints; 
+//     ZeroMemory(&hints, sizeof(hints));
+//     hints.ai_family = AF_INET;
+//     hints.ai_socktype = SOCK_STREAM;
+//     hints.ai_protocol = IPPROTO_TCP;
+//     hints.ai_flags = AI_PASSIVE;
+//     return 0;
+// }
+
+
+int configureSocketHints(struct addrinfo* hints) {
+    ZeroMemory(hints, sizeof(*hints)); // Zero out the memory of the variable hints, which is a pointer to the arrinfo struct
+    hints->ai_family = AF_INET;
+    hints->ai_socktype = SOCK_STREAM;
+    hints->ai_protocol = IPPROTO_TCP;
+    hints->ai_flags = AI_PASSIVE;
+
+
+   return 0; 
+}
+
+
 int createSocket() {
     SOCKET ListenSocket = INVALID_SOCKET; 
-
-    struct addrinfo hints; 
-    ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    hints.ai_flags = AI_PASSIVE;
-
+    configureSocketHints(&hints);
 
     // Resolve the local address and port to be used by the server
     iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
@@ -85,9 +103,14 @@ void welcomeToProgram () {
 
 int startWSA() {
     welcomeToProgram();
-    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);     // Initialize Winsock
+
+    iResult = WSAStartup(
+        MAKEWORD(2,2), // Major and Min Version
+        &wsaData  // pointer to a WSADATA struct where to store Windows Socket implementation 
+    );    
+
     if (iResult != 0) {
-        std::cout << "WSAStartup failed: "<< iResult << std::endl;
+        std::cout << "WSAStartup failed, returned: "<< iResult << std::endl;
         return 1;
     } else {
         std::cout << "WSAStartup ran successfully! " << std::endl;
