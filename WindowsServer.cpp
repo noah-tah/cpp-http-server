@@ -1,33 +1,51 @@
+//
+// Noah Tah 
+// Northern Oklahoma College
+// C++ Progamming
+//
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
 #include <iostream>
-/*
-    We must be sure that the build environment links to the Winsock Library file
-    The #pragma comment indicates to the linkers that the library file is needed
-*/
-
-#pragma comment(lib, "Ws2_32.lib") // tells linker this library file is needed
+#include <windows.h>
 
 
 // Global Definitions
+#define DEFAULT_PORT "27015"
+#pragma comment(lib, "Ws2_32.lib") // tells linker this library file is needed
 WSADATA wsaData;
-
-struct addrinfo hints;
-struct addrinfo* result = NULL;
+struct addrinfo* result = NULL; // intializing pointer variable to NULL called result
 int iResult;
 
 
-int initializeHints() {
-    #define DEFAULT_PORT "27015"
+//
+// Call the socket function to return its value to the ListenSocket variable (object)
+// use the first IP address returned by the call to getaddrinfo that matched the address
+// family, socket type, and protocol specified in the hints parameter
+//
+//
+// in this example, a TCP stream socket for IPv4 was requested with an address family of
+// IPv4, a socket type of SOCK_STREAM and a protocol of IPPROTO_TCP. so an IPv4 address
+// is requested for the ListenSocket
 
-    struct addrinfo *result = NULL, *ptr = NULL, hints;
 
+void printSocketCreatedSuccess() {
+    std::cout << "Socket created succesfully!" << std::endl;
+    std::cout << "Socket bound with ai_family: " << result->ai_family << std::endl;
+    std::cout << "Socket bound with ai_socktype: " << result->ai_socktype << std::endl;
+    std::cout << "Socket bound with ai_protocol: " << result->ai_protocol << std::endl;
+}
+
+int createSocket() {
+    SOCKET ListenSocket = INVALID_SOCKET; 
+
+    struct addrinfo hints; 
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE;
+
 
     // Resolve the local address and port to be used by the server
     iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
@@ -36,24 +54,38 @@ int initializeHints() {
         WSACleanup();
         return 1;
     } else {
-        std::cout << "intializeHints() was successful!" << std::endl;
-        return 0;
+        std::cout << "getaddressinfo was a success, returned: " << iResult << std::endl;
     }
+    std::cout << "about to run socket() " << std::endl;
+    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    
 
+    if(ListenSocket == INVALID_SOCKET) {
+        std::cout << "Error at socket(): " << WSAGetLastError() << std::endl;
+        freeaddrinfo(result);
+        WSACleanup();
+        return 1;
+    } else {
+        printSocketCreatedSuccess();
+    }
+    return 0;
 }
-
-int startEngines() {
-    std::cout << "Program has begun..." << std::endl;
-    std::cout << "Initializing Winsock... Running WSAStartup" << std::endl;
 
     //
     // All processess that call winsock functions must initialize the use of the Windows Sockets
     // DLL before making other winsock functions
     //
-    // Initialize Winsock
-    //
 
-    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+
+void welcomeToProgram () {
+    std::cout << "Program has begun..." << std::endl;
+    std::cout << "Initializing Winsock... Running WSAStartup" << std::endl;
+}
+
+
+int startWSA() {
+    welcomeToProgram();
+    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);     // Initialize Winsock
     if (iResult != 0) {
         std::cout << "WSAStartup failed: "<< iResult << std::endl;
         return 1;
@@ -61,14 +93,18 @@ int startEngines() {
         std::cout << "WSAStartup ran successfully! " << std::endl;
     }
 
+    return 0;
 
 }
+
+
 int main () {
 
-    startEngines(); // Run that function to get stuff started right
-    initializeHints(); // Call the function to set up hints
+    if (startWSA() != 0) return 1; 
+    if (createSocket() != 0) return 1; 
 
 
-
+    freeaddrinfo(result);
+    WSACleanup();
     return 0;
 }
