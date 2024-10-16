@@ -25,6 +25,8 @@ WSADATA wsaData;
 struct addrinfo* result = NULL; // intializing pointer variable to NULL called result
 struct addrinfo hints;
 int iResult;
+SOCKET ListenSocket = INVALID_SOCKET; 
+
 //
 //
 // End Global Definitions
@@ -66,21 +68,38 @@ int initializeSocket() {
         WSACleanup();
         return 1;
     } else {
-        std::cout << "getaddressinfo was a success, returned: " << iResult << std::endl;
+        std::cout << "getaddressinfo was a success, returned: " << result << std::endl;
     }
     return 0;
 }
 
-int createSocket() {
-    SOCKET ListenSocket = INVALID_SOCKET; 
 
-    std::cout << "Initialied ListenSocket: " << ListenSocket << std::endl;
+int extractIPv4() {
+    std::cout << "Extracting IPv4 address..." << std::endl;
+
+    struct sockaddr_in *ipv4 = (struct sockaddr_in *)result->ai_addr;
+    char ipstr[INET_ADDRSTRLEN]; // Buffer to store IP addr in string
+
+    // Convert the binary IP addr to a string
+    inet_ntop(
+        AF_INET, // Address Family
+        &(ipv4->sin_addr), // Location of the IP in binary
+        ipstr, // The buffer we stored the string
+        sizeof(ipstr) // Size of buffer
+    );
+
+    std::cout << "Anyways, here's the resolved IP address: " << ipstr << std::endl;
+    return 0;
+}
+
+int createSocket() {
 
     ListenSocket = socket(
         result->ai_family,
         result->ai_socktype,
         result->ai_protocol
     );
+    std::cout << "Initialied ListenSocket!" << std::endl;
 
     if(ListenSocket == INVALID_SOCKET) {
         std::cout << "Error at socket(): " << WSAGetLastError() << std::endl;
@@ -90,6 +109,7 @@ int createSocket() {
     } else {
         printSocketCreatedSuccess();
     }
+
     return 0;
 }
 
@@ -118,15 +138,32 @@ int startWSA() {
 
 }
 
+int bindSocket() {
+    // Setup the TCP listening socket
+    int iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
+        std::cout << "Bind failed with error: " << WSAGetLastError() << std::endl;
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    } else {
+        std::cout << "Socket bound!";
+        freeaddrinfo(result);
+    }
+    return 0;
+}
 
 int main () {
 
     if (startWSA() != 0) return 1; 
     if (initializeSocket() != 0) return 1;
     if (createSocket() != 0) return 1; 
+    if (extractIPv4() != 0) return 1;
+    if (bindSocket() != 0) return 1;
 
 
-    freeaddrinfo(result);
+
+
     WSACleanup();
     return 0;
 }
