@@ -1,33 +1,36 @@
-//
+// ---------------------------//
 // Noah Tah 
 // Northern Oklahoma College
 // C++ Progamming
+// ---------------------------//
+// Libraries & Setup
+//
 //
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
 #include <iostream>
 #include <windows.h>
-
-
-// Global Definitions
-#define DEFAULT_PORT "27015"
+//
 #pragma comment(lib, "Ws2_32.lib") // tells linker this library file is needed
+//
+// End Libraries & setup
+// ---------------------- //
+//
+// Global Definitions
+// ---------------------- //
+
+#define DEFAULT_PORT "27015"
 WSADATA wsaData;
 struct addrinfo* result = NULL; // intializing pointer variable to NULL called result
 struct addrinfo hints;
 int iResult;
+//
+//
+// End Global Definitions
+// -------------------------------//
 
 
-//
-// Call the socket function to return its value to the ListenSocket variable (object)
-// use the first IP address returned by the call to getaddrinfo that matched the address
-// family, socket type, and protocol specified in the hints parameter
-//
-//
-// in this example, a TCP stream socket for IPv4 was requested with an address family of
-// IPv4, a socket type of SOCK_STREAM and a protocol of IPPROTO_TCP. so an IPv4 address
-// is requested for the ListenSocket
 
 
 void printSocketCreatedSuccess() {
@@ -39,10 +42,10 @@ void printSocketCreatedSuccess() {
 
 int configureSocketHints(struct addrinfo* hints) {
     ZeroMemory(hints, sizeof(*hints)); // Zero out the memory of the variable hints, which is a pointer to the arrinfo struct
-    hints->ai_family = AF_INET;
-    hints->ai_socktype = SOCK_STREAM;
-    hints->ai_protocol = IPPROTO_TCP;
-    hints->ai_flags = AI_PASSIVE;
+    hints->ai_family = AF_INET; // IPv4 address family
+    hints->ai_socktype = SOCK_STREAM; // Stream socket
+    hints->ai_protocol = IPPROTO_TCP; // TCP protocol
+    hints->ai_flags = AI_PASSIVE; // caller intends to use the returned socket address structure in a call to bind()
 
 
    return 0; 
@@ -51,9 +54,13 @@ int configureSocketHints(struct addrinfo* hints) {
 int initializeSocket() {
     configureSocketHints(&hints);
 
+    iResult = getaddrinfo(
+        NULL, // Hostname to be resolved ; Null means local machine
+        DEFAULT_PORT, // We defined this earlier 
+        &hints, // point to our struct addrinfo which holds the hints
+        &result // point to our struct addrinfo which contains the addrinfo structure that matches hints criteria. result is used to create a socket
+    );
 
-    // Resolve the local address and port to be used by the server
-    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
     if (iResult != 0) {
         std::cout << "getaddrinfo failed " << iResult << std::endl;
         WSACleanup();
@@ -74,7 +81,6 @@ int createSocket() {
         result->ai_socktype,
         result->ai_protocol
     );
-    
 
     if(ListenSocket == INVALID_SOCKET) {
         std::cout << "Error at socket(): " << WSAGetLastError() << std::endl;
@@ -86,12 +92,6 @@ int createSocket() {
     }
     return 0;
 }
-
-    //
-    // All processess that call winsock functions must initialize the use of the Windows Sockets
-    // DLL before making other winsock functions
-    //
-
 
 void welcomeToProgram () {
     std::cout << "Program has begun..." << std::endl;
