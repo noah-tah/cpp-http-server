@@ -37,18 +37,6 @@ void printSocketCreatedSuccess() {
     std::cout << "Socket bound with ai_protocol: " << result->ai_protocol << std::endl;
 }
 
-
-// int configureSocketHints() {
-//     struct addrinfo hints; 
-//     ZeroMemory(&hints, sizeof(hints));
-//     hints.ai_family = AF_INET;
-//     hints.ai_socktype = SOCK_STREAM;
-//     hints.ai_protocol = IPPROTO_TCP;
-//     hints.ai_flags = AI_PASSIVE;
-//     return 0;
-// }
-
-
 int configureSocketHints(struct addrinfo* hints) {
     ZeroMemory(hints, sizeof(*hints)); // Zero out the memory of the variable hints, which is a pointer to the arrinfo struct
     hints->ai_family = AF_INET;
@@ -60,10 +48,9 @@ int configureSocketHints(struct addrinfo* hints) {
    return 0; 
 }
 
-
-int createSocket() {
-    SOCKET ListenSocket = INVALID_SOCKET; 
+int initializeSocket() {
     configureSocketHints(&hints);
+
 
     // Resolve the local address and port to be used by the server
     iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
@@ -74,8 +61,19 @@ int createSocket() {
     } else {
         std::cout << "getaddressinfo was a success, returned: " << iResult << std::endl;
     }
-    std::cout << "about to run socket() " << std::endl;
-    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    return 0;
+}
+
+int createSocket() {
+    SOCKET ListenSocket = INVALID_SOCKET; 
+
+    std::cout << "Initialied ListenSocket: " << ListenSocket << std::endl;
+
+    ListenSocket = socket(
+        result->ai_family,
+        result->ai_socktype,
+        result->ai_protocol
+    );
     
 
     if(ListenSocket == INVALID_SOCKET) {
@@ -124,6 +122,7 @@ int startWSA() {
 int main () {
 
     if (startWSA() != 0) return 1; 
+    if (initializeSocket() != 0) return 1;
     if (createSocket() != 0) return 1; 
 
 
