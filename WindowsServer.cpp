@@ -56,12 +56,7 @@ int configureSocketHints(struct addrinfo* hints) {
 int initializeSocket() {
     configureSocketHints(&hints);
 
-    iResult = getaddrinfo(
-        NULL, // Hostname to be resolved ; Null means local machine
-        DEFAULT_PORT, // We defined this earlier 
-        &hints, // point to our struct addrinfo which holds the hints
-        &result // point to our struct addrinfo which contains the addrinfo structure that matches hints criteria. result is used to create a socket
-    );
+    iResult = getaddrinfo(NULL,DEFAULT_PORT,&hints,&result);
 
     if (iResult != 0) {
         std::cout << "getaddrinfo failed " << iResult << std::endl;
@@ -81,12 +76,7 @@ int extractIPv4() {
     char ipstr[INET_ADDRSTRLEN]; // Buffer to store IP addr in string
 
     // Convert the binary IP addr to a string
-    inet_ntop(
-        AF_INET, // Address Family
-        &(ipv4->sin_addr), // Location of the IP in binary
-        ipstr, // The buffer we stored the string
-        sizeof(ipstr) // Size of buffer
-    );
+    inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr,sizeof(ipstr));
 
     std::cout << "Anyways, here's the resolved IP address: " << ipstr << std::endl;
     return 0;
@@ -131,7 +121,7 @@ int startWSA() {
         std::cout << "WSAStartup failed, returned: "<< iResult << std::endl;
         return 1;
     } else {
-        std::cout << "WSAStartup ran successfully! " << std::endl;
+        std::cout << "WinSock Description: " << wsaData.szDescription << std::endl;
     }
 
     return 0;
@@ -149,6 +139,22 @@ int bindSocket() {
     } else {
         std::cout << "Socket bound!";
         freeaddrinfo(result);
+    }
+    return 0;
+}
+
+//
+//  Call the listen function, passing as paramters the created socket and value for the backlog,
+//
+
+int listenOnSocket() {
+    if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR) {
+        std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    } else {
+        std::cout << "Socket is listening..." << std::endl;
     }
     return 0;
 }
