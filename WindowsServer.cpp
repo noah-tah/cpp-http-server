@@ -13,6 +13,7 @@
 #include <windows.h>
 #include <thread>
 #include <atomic>
+#include <string>
 //
 #pragma comment(lib, "Ws2_32.lib") // tells linker this library file is needed
 //
@@ -30,14 +31,28 @@ int iResult;
 SOCKET ListenSocket = INVALID_SOCKET; 
 std::atomic<bool> running(true); // Atomic flag for graceful shutdown
 
-void log(const std::string& message) {
-    std::cout << message << std::endl;
-}
+void log(const std::string& message); 
+int startWSA();
+int createSocket();
+void serverLoop();
+void cleanup();
+int initializeSocketPresets();
+int extractIPv4();
+int bindSocket();
+int listenOnSocket();
+void printSocketCreatedSuccess();
+int configureSocketHints(struct addrinfo* hints);
+SOCKET acceptConnection();
+int handleRequests(SOCKET ClientSocket);
+
 
 //
 //
 // End Global Definitions
 // -------------------------------//
+
+
+
 
 //
 // Function Definitions
@@ -90,6 +105,8 @@ int initializeSocketPresets() {
     // - We use the hints struct to specify the desired properties of the socket 
     // - The result parameter will point to a linked list of addrinfo structures containing the resolved address 
     //
+    // iResult just contains the integer status code
+    //
 
     iResult = getaddrinfo(NULL,DEFAULT_PORT,&hints,&result);
 
@@ -98,7 +115,7 @@ int initializeSocketPresets() {
         WSACleanup();
         return 1;
     } else {
-        std::cout << "getaddressinfo was a success, returned: " << result << std::endl;
+        std::cout << "Memory address of the addrinfo structure containing the resolved address: " << result << std::endl;
     }
     return 0;
 }
@@ -118,17 +135,19 @@ int extractIPv4() {
 }
 
 int createSocket() {
-
+    // Create a socket using the address information from getaddrinfo which was stored in the result variable
+    // This is possible because the result variable points to the linked list of addrinfo structures containing the resolved address
     ListenSocket = socket(result->ai_family,result->ai_socktype,result->ai_protocol);
     std::cout << "Initialied ListenSocket!" << std::endl;
 
+    // Check if the socket creation failed
     if(ListenSocket == INVALID_SOCKET) {
         std::cout << "Error at socket(): " << WSAGetLastError() << std::endl;
-        freeaddrinfo(result);
-        WSACleanup();
+        freeaddrinfo(result);  // Free the address information
+        WSACleanup(); // Clean up Winsock
         return 1;
     } else {
-        printSocketCreatedSuccess();
+        printSocketCreatedSuccess(); // Print success message
     }
 
     return 0;
@@ -172,6 +191,7 @@ int bindSocket() {
     int iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
         std::cout << "Bind failed with error: " << WSAGetLastError() << std::endl;
+        freeaddrinfo(result);
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
@@ -283,6 +303,10 @@ void serverLoop() {
 //
 
 
+
+// Main Server Code
+//----------------------//
+
 // # Functions of our Windows Server
 
 // 1. Initialize WSA - WSAStartup()
@@ -303,25 +327,38 @@ int main () {
     if (bindSocket() != 0) return 1;
     if (listenOnSocket() != 0) return 1;
 
-    std::thread serverThread(serverLoop);
-
-    // Wait for user input to shut down the server
-    std::cout << "Press Enter to shut down the server..." << std::endl;
-    std::cin.get();
-    running = false;
-
-    serverThread.join();
-    cleanup();
+    // std::thread serverThread(serverLoop);
 
 
-    while (true) {
-        SOCKET ClientSocket = acceptConnection();
-        if (ClientSocket == INVALID_SOCKET) break;
-        handleRequests(ClientSocket);
+    // closesocket(ListenSocket);
+    // serverThread.join();
+    // cleanup();
+
+
+    // while (true) {
+    //     SOCKET ClientSocket = acceptConnection();
+    //     if (ClientSocket == INVALID_SOCKET) break;
+    //     handleRequests(ClientSocket);
+    // }
+
+    SOCKET ClientSocket = INVALID_SOCKET;
+
+    // Accept single client socket
+    ClientSocket = accept(ListenSocket, NULL, NULL);
+    if (ClientSocket == INVALID_SOCKET) {
+        std::cout << "Accept failed: " << WSAGetLastError() << std::endl;
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
     }
+
 
 
 
     WSACleanup();
     return 0;
 }
+
+// ----------------------//
+// End Main Server Code
+//----------------------//

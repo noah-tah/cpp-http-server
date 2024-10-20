@@ -58,3 +58,25 @@ typedef struct WSAData {
 }
 ```
 The WSAStartup function returns a pointer to the WSADATA structure in the IpWSAData parameter
+
+
+# Accepting a connection
+---
+
+```C++
+ClientSocket = INVALID_SOCKET;
+
+// Accept a client socket
+ClientSocket = accept(ListenSocket, NULL, NULL);
+if (ClientSocket == INVALID_SOCKET) {
+    printf("accept failed: %d\n", WSAGetLastError());
+    closesocket(ListenSocket);
+    WSACleanup();
+    return 1;
+}
+
+```
+When the client connection has been accepted, a server application would normally pass the accepted client socket (the ClientSocket variable in the above sample code) to a worker thread or an I/O  completion port and continue accepting additional connections. In this basic example, the server continues to the next step.
+
+
+
