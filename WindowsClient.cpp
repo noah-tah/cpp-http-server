@@ -13,7 +13,27 @@
 // 3. Connect to the server
 // 4. Send and receive data
 // 5. Disconnect
-int main() {
+
+
+// __cdecl is a calling convention that defines how the function should handle
+// the stack and arguments. Defauylt calling convention for C and C++ programs
+// On x86 architecture
+
+// int argc: An int parameter that represents the number of command-line
+// arguments are passed to the program, inlcuding the program name itself
+// char **argv: An arrray of C-style character pointers rerpresenting 
+// command line arguments
+//      argv[0] is the program name
+//      argv[1] is the first command line argument provided by the user
+int __cdecl main(int argc, char **argv) {
+
+    // Check if the user passed in the serverr address
+    if (argc != 2) {
+        std::cout << "Usage: " << argv[0] << " server-name" << std::endl;
+        return 1;
+    }
+
+
 
     //----------------------//
     // Initializing Winsock
@@ -54,7 +74,7 @@ int main() {
     // Resolve the server address and port
     
     // iResult = getaddrinfo(argv[1], DEFAULT_PORT, &hints, &result);
-    iResult = getaddrinfo("localhost", DEFAULT_PORT, &hints, &result);
+    iResult = getaddrinfo(argv[1], DEFAULT_PORT, &hints, &result);
 
     if (iResult != 0) {
         std::cout << "getaddrinfo failed, returned: " << iResult << std::endl;
@@ -152,10 +172,28 @@ int main() {
         } 
     } while (iResult > 0);
 
+    // Once the client is completed sending and receiving data, close the socket
+
+    // shutdown the send half of the connection since no more data will be sent
+    iResult = shutdown(ConnectSocket, SD_SEND);
+    if (iResult == SOCKET_ERROR) {
+        std::cout << "shutdown failed, returned: " << WSAGetLastError() << std::endl;
+        closesocket(ConnectSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // When the client is done re3ceving data, closesocket function is called to close socket
+    // Then WSACleanup to release resources related to Windows Sockets DLL
+
+    // cleanup
+    closesocket(ConnectSocket);
+    WSACleanup();
 
 
 
    return 0;
 }
+
 
 
