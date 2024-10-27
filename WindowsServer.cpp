@@ -115,7 +115,7 @@ int initializeSocketPresets() {
         WSACleanup();
         return 1;
     } else {
-        std::cout << "Memory address of the addrinfo structure containing the resolved address: " << result << std::endl;
+        std::cout << "Memory address of the linked list of addrinfo structures containing the resolved addresses: " << result << std::endl;
     }
     return 0;
 }

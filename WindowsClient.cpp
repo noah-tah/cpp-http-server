@@ -82,20 +82,9 @@ int __cdecl main(int argc, char **argv) {
         return 1;
     }
 
-    // Create a SOCKET object called ConnectSocket
     SOCKET ConnectSocket = INVALID_SOCKET;
-
-    // Call the socket function and return its value to the ConnectSocket variable.
-    // For this application, use the first IP returned by the call to getaddrinfo
-    // This IP matched the address family, socket type, and protocol specified in
-    // the hints parameter.
-    // This is a TCP socket (SOCK_STREAM) so we use the IPPROTO_TCP parameter.
-    // The address family we used is AF_INET, which is the IPv4 address family.
-
-    // Attempt to connect to the first address returned by the call to getaddrinfo
     ptr = result;
 
-    // Create a SOCKET for connecting to server
     ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
     if (ConnectSocket == INVALID_SOCKET) {
         std::cout << "Error at socket(), returned: " << WSAGetLastError() << std::endl;
