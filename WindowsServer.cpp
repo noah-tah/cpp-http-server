@@ -3,11 +3,6 @@
 // Northern Oklahoma College
 // C++ Progamming
 // ---------------------------//
-
-// ---------------------------//
-// Libraries & Setup
-// ---------------------------//
-
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
@@ -17,50 +12,16 @@
 #include <atomic>
 #include <string>
 
-// Link with Ws2_32.lib (Windows Sockets Library)
-#pragma comment(lib, "Ws2_32.lib") 
-
-//----------------------//
-// End Libraries & setup
-//----------------------//
-
-//----------------------//
-// Global Definitions
-//----------------------//
-
+#pragma comment(lib, "Ws2_32.lib") // Link with Ws2_32.lib (Windows Sockets Library)
 #define DEFAULT_PORT "8080"
 WSADATA wsaData;
-struct addrinfo* result = NULL; // intializing pointer variable to NULL called result
-struct addrinfo hints;
-int iResult;
-SOCKET ListenSocket = INVALID_SOCKET; 
-std::atomic<bool> running(true); // Atomic flag for graceful shutdown
+struct addrinfo* result = NULL; // pointer structure to store the address information
+struct addrinfo hints; // structure to store the desired properties of the socket
+int iResult; // integer to use for error checking with the Winsock function return values
+SOCKET ListenSocket = INVALID_SOCKET;
+std::atomic<bool> running(true); // atomic boolean to control the server loop which will run as as long as the flag is set to true 
 
-void log(const std::string& message); 
-int startWSA();
-int createSocket();
-void serverLoop();
-void cleanup();
-int initializeSocketPresets();
-int extractIPv4();
-int bindSocket();
-int listenOnSocket();
-void printSocketCreatedSuccess();
-int configureSocketHints(struct addrinfo* hints);
-SOCKET acceptConnection();
-int handleRequests(SOCKET ClientSocket);
-
-
-// -------------------------------//
-// End Global Definitions
-// -------------------------------//
-
-
-
-//----------------------//
-//Function Definitions
-//----------------------//
-
+void log(const std::string& message);// Function to log messages which takes in a string message as a parameter which will be printed to the console
 
 /*
 Function setting the addressinfo struct to the desired values
@@ -70,7 +31,6 @@ Set the socket type to stream socket (TCP)
 Set the protocol to TCP
 AI_PASSIVE means the socket address will be called to bind()
 */
-
 int configureSocketHints(struct addrinfo* hints) {
     ZeroMemory(hints, sizeof(*hints)); 
     hints->ai_family = AF_INET;
@@ -170,6 +130,7 @@ int startWSA() {
 /*
 Bind the socket to the address and port specified in the addrinfo data structure
 */ 
+
 int bindSocket() {
     int iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
@@ -188,6 +149,7 @@ int bindSocket() {
 /*
 Listen on the socket, taking in the socket and the backlog which is the maximum number of connections that can be queued 
 */
+
 int listenOnSocket() {
     if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR) {
         std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
@@ -211,6 +173,7 @@ if accept() returns a valid socket, then we have a connection
     print the IP address of the client
     return the client socket        
 */
+
 SOCKET acceptConnection() {
     SOCKET ClientSocket = INVALID_SOCKET;
     struct sockaddr_in clientInfo;
@@ -282,16 +245,6 @@ void serverLoop() {
     }
 }
 
-
-//----------------------//
-// End Function Definitions
-//----------------------//
-
-
-//----------------------//
-// Main Server Code
-//----------------------//
-
 /*
 Functions of our Windows Server
     1. Initialize WSA - WSAStartup()
@@ -321,7 +274,3 @@ int main () {
     WSACleanup();
     return 0;
 }
-
-// ----------------------//
-// End Main Server Code
-//----------------------//
