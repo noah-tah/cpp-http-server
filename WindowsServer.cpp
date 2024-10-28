@@ -110,16 +110,22 @@ int initializeSocketPresets() {
     return 0;
 }
 
+/*
+Extract the result 
+- The result variable points to the linked list of addrinfo structures containing the resolved client addresses
+- We can extract the IPv4 address from the first addrinfo structure in the linked list
+- We cast the result->ai_addr to a sockaddr_in pointer to access the sin_addr field which contains the binary IP address
+- We use inet_ntop to convert the binary IP address to a string and store it in the ipstr buffer
+- ipstr is the buffer to store the IP address in string form
+- INET_ADDRSTRELEN is a constant that specifies the size of a buffer for an IPv4 address in string form
+- &(ipv4->sin_addr) is the binary IP address
+*/
 
 int extractIPv4() {
     std::cout << "Extracting IPv4 address..." << std::endl;
-
     struct sockaddr_in *ipv4 = (struct sockaddr_in *)result->ai_addr;
     char ipstr[INET_ADDRSTRLEN]; // Buffer to store IP addr in string
-
-    // Convert the binary IP addr to a string
     inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr,sizeof(ipstr));
-
     std::cout << "Here is the resolved IP Address " << ipstr << std::endl;
     return 0;
 }
@@ -144,17 +150,13 @@ int createSocket() {
     return 0;
 }
 
-void welcomeToProgram () {
-    std::cout << "Program has begun..." << std::endl;
-    std::cout << "Initializing Winsock... Running WSAStartup" << std::endl;
-}
-
 /*
 Run WSAstartup to initialize Winsock
 */
 
 int startWSA() {
-    welcomeToProgram();
+    std::cout << "startWSA() called! Program has begun..." << std::endl;
+    std::cout<< "Initializing Winsock Library... Running WSAStartup" << std::endl;
     iResult = WSAStartup(MAKEWORD(2,2),&wsaData);    
     if (iResult != 0) {
         std::cout << "WSAStartup failed, returned: "<< iResult << std::endl;
@@ -163,13 +165,11 @@ int startWSA() {
         std::cout << "WinSock Description: " << wsaData.szDescription << std::endl;
     }
     return 0;
-
 }
 
 /*
 Bind the socket to the address and port specified in the addrinfo data structure
 */ 
-
 int bindSocket() {
     int iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
@@ -188,7 +188,6 @@ int bindSocket() {
 /*
 Listen on the socket, taking in the socket and the backlog which is the maximum number of connections that can be queued 
 */
-
 int listenOnSocket() {
     if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR) {
         std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
@@ -212,8 +211,6 @@ if accept() returns a valid socket, then we have a connection
     print the IP address of the client
     return the client socket        
 */
-
-
 SOCKET acceptConnection() {
     SOCKET ClientSocket = INVALID_SOCKET;
     struct sockaddr_in clientInfo;
