@@ -40,21 +40,6 @@ void printSocketCreatedSuccess() {
     std::cout << "Socket bound with ai_protocol: " << result->ai_protocol << std::endl;
 }
 
-int resolveLocalAddress() {
-    configureSocketHints(&hints);
-    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
-    if (iResult != 0) {
-        std::cout << "getaddrinfo failed: " << iResult << std::endl;
-        WSACleanup();
-        return 1;
-    } else {
-        std::cout << "Memory address of the linked list of addrinfo structures containing the resolved addrresses: " << result << std::endl;
-    }
-
-    struct sockaddr_in *serverBinaryAddress = (struct sockaddr_in*)result->ai_addr;
-    std::string serverIP = extractIPv4(&serverBinaryAddress);
-}
-
 std::string extractIPv4(struct sockaddr_in *ipv4) {
     std::cout << "Extracting IPv4 address..." << std::endl;
     char ipstr[INET_ADDRSTRLEN]; // Buffer to store IP addr in string
@@ -66,7 +51,7 @@ std::string extractIPv4(struct sockaddr_in *ipv4) {
     return std::string(ipstr);
 }
 
-int initializeSocketPresets() {
+int resolveLocalAddress() {
     configureSocketHints(&hints);
 
     // Resolve local address and port
@@ -78,10 +63,11 @@ int initializeSocketPresets() {
     } else {
         std::cout << "Memory address of the linked list of addrinfo structures containing the resolved addresses: " << result << std::endl;
     }
+
     struct sockaddr_in *serverBinaryAddress = (struct sockaddr_in *)result->ai_addr;
     struct sockaddr_in* resultIP = (struct sockaddr_in *)result->ai_addr;
-    std::string serverIP = extractIPv4(&resultIP);
-    std::cout << serverIP << std::endl;
+    // std::string serverIP = extractIPv4(&resultIP);
+    // std::cout << serverIP << std::endl;
 
     return 0;
 }
@@ -192,9 +178,8 @@ void serverLoop() {
 
 int main () {
     if (startWSA() != 0) return 1; 
-    if (initializeSocketPresets() != 0) return 1;
+    if (resolveLocalAddress() != 0) return 1;
     if (createSocket() != 0) return 1; 
-    if (extractIPv4() != 0) return 1;
     if (bindSocket() != 0) return 1;
     if (listenOnSocket() != 0) return 1;
     SOCKET ClientSocket = INVALID_SOCKET;
