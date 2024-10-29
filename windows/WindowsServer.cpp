@@ -20,6 +20,7 @@ struct addrinfo hints; // structure to store the desired properties of the socke
 int iResult; // integer to use for error checking with the Winsock function return values
 SOCKET ListenSocket = INVALID_SOCKET;
 std::atomic<bool> running(true); // atomic boolean to control the server loop which will run as as long as the flag is set to true 
+SOCKET ClientSocket = INVALID_SOCKET;
 
 void log(const std::string& message);// Function to log messages which takes in a string message as a parameter which will be printed to the console
 
@@ -263,7 +264,6 @@ int main () {
     if (extractIPv4() != 0) return 1;
     if (bindSocket() != 0) return 1;
     if (listenOnSocket() != 0) return 1;
-    SOCKET ClientSocket = INVALID_SOCKET;
     ClientSocket = accept(ListenSocket, NULL, NULL);
     if (ClientSocket == INVALID_SOCKET) {
         std::cout << "Accept failed: " << WSAGetLastError() << std::endl;
