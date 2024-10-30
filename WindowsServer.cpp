@@ -3,6 +3,12 @@
 // Northern Oklahoma College
 // C++ Progamming
 // ---------------------------//
+// ---------------------------//
+// Description:
+// This program is a simple HTTP server
+// that listens on port 8080 and sends a
+// simple HTML response to the client.
+// ---------------------------//
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
@@ -23,32 +29,27 @@ std::atomic<bool> running(true);
 
 void log(const std::string& message);
 
+int startWSA() {
+    std::cout << "startWSA() called! Program has begun..." << std::endl;
+    std::cout<< "Initializing Winsock Library... Running WSAStartup" << std::endl;
+    iResult = WSAStartup(MAKEWORD(2,2),&wsaData);    
+    if (iResult != 0) {
+        std::cout << "WSAStartup failed, returned: "<< iResult << std::endl;
+        return 1;
+    } else {
+        std::cout << "WinSock Description: " << wsaData.szDescription << std::endl;
+    }
+    return 0;
+}
+
 int configureSocketHints(struct addrinfo* hints) {
     memset(hints, 0, sizeof(struct addrinfo));
     ZeroMemory(hints, sizeof(*hints)); 
+    hints->ai_flags = AI_PASSIVE;
     hints->ai_family = AF_INET; 
     hints->ai_socktype = SOCK_STREAM; 
     hints->ai_protocol = IPPROTO_TCP;
-    hints->ai_flags = AI_PASSIVE;
     return 0; 
-}
-
-void printSocketCreatedSuccess() {
-    std::cout << "Socket created succesfully!" << std::endl;
-    std::cout << "Socket bound with ai_family: " << result->ai_family << std::endl;
-    std::cout << "Socket bound with ai_socktype: " << result->ai_socktype << std::endl;
-    std::cout << "Socket bound with ai_protocol: " << result->ai_protocol << std::endl;
-}
-
-std::string extractIPv4(struct sockaddr_in *ipv4) {
-    std::cout << "Extracting IPv4 address..." << std::endl;
-    char ipstr[INET_ADDRSTRLEN]; // Buffer to store IP addr in string
-    if (inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr, INET_ADDRSTRLEN) != NULL) {
-        return std::string(ipstr);
-    } else {
-        std::cerr << "Failed to convert IPv4 address to strring." << std::endl;
-    }
-    return std::string(ipstr);
 }
 
 int resolveLocalAddress() {
@@ -65,12 +66,20 @@ int resolveLocalAddress() {
     }
 
     struct sockaddr_in *serverBinaryAddress = (struct sockaddr_in *)result->ai_addr;
+    std::cout << "Server binary address: " << serverBinaryAddress << std::endl;
     struct sockaddr_in* resultIP = (struct sockaddr_in *)result->ai_addr;
-    // std::string serverIP = extractIPv4(&resultIP);
-    // std::cout << serverIP << std::endl;
+    std::cout << "resultIP: " << resultIP << std::endl;
 
     return 0;
 }
+
+void printSocketCreatedSuccess() {
+    std::cout << "Socket created succesfully!" << std::endl;
+    std::cout << "Socket bound with ai_family: " << result->ai_family << std::endl;
+    std::cout << "Socket bound with ai_socktype: " << result->ai_socktype << std::endl;
+    std::cout << "Socket bound with ai_protocol: " << result->ai_protocol << std::endl;
+}
+
 int createSocket() {
     ListenSocket = socket(result->ai_family,result->ai_socktype,result->ai_protocol);
     std::cout << "Initialied ListenSocket!" << std::endl;
@@ -81,19 +90,6 @@ int createSocket() {
         return 1;
     } else {
         printSocketCreatedSuccess(); 
-    }
-    return 0;
-}
-
-int startWSA() {
-    std::cout << "startWSA() called! Program has begun..." << std::endl;
-    std::cout<< "Initializing Winsock Library... Running WSAStartup" << std::endl;
-    iResult = WSAStartup(MAKEWORD(2,2),&wsaData);    
-    if (iResult != 0) {
-        std::cout << "WSAStartup failed, returned: "<< iResult << std::endl;
-        return 1;
-    } else {
-        std::cout << "WinSock Description: " << wsaData.szDescription << std::endl;
     }
     return 0;
 }
@@ -111,6 +107,15 @@ int bindSocket() {
         freeaddrinfo(result);
     }
     return 0;
+}
+
+std::string extractIPv4(struct sockaddr_in *ipv4) {
+    std::cout << "Extracting IPv4 address..." << std::endl;
+    char ipstr[INET_ADDRSTRLEN]; 
+    if (inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr, INET_ADDRSTRLEN) == NULL) {
+        std::cerr << "Failed to convert IPv4 address to string." << std::endl;
+    }
+    return std::string(ipstr);
 }
 
 int listenOnSocket() {
