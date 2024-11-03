@@ -29,26 +29,13 @@ std::atomic<bool> running(true);
 
 void log(const std::string& message);
 
-int startWSA() {
-    std::cout << "startWSA() called! Program has begun..." << std::endl;
-    std::cout<< "Initializing Winsock Library... Running WSAStartup" << std::endl;
-    iResult = WSAStartup(MAKEWORD(2,2),&wsaData);    
-    if (iResult != 0) {
-        std::cout << "WSAStartup failed, returned: "<< iResult << std::endl;
-        return 1;
-    } else {
-        std::cout << "WinSock Description: " << wsaData.szDescription << std::endl;
-    }
-    return 0;
-}
-
 int configureSocketHints(struct addrinfo* hints) {
     memset(hints, 0, sizeof(struct addrinfo));
     ZeroMemory(hints, sizeof(*hints)); 
-    hints->ai_flags = AI_PASSIVE;
     hints->ai_family = AF_INET; 
     hints->ai_socktype = SOCK_STREAM; 
     hints->ai_protocol = IPPROTO_TCP;
+    hints->ai_flags = AI_PASSIVE;
     return 0; 
 }
 
@@ -66,9 +53,9 @@ int resolveLocalAddress() {
     }
 
     struct sockaddr_in *serverBinaryAddress = (struct sockaddr_in *)result->ai_addr;
-    std::cout << "Server binary address: " << serverBinaryAddress << std::endl;
     struct sockaddr_in* resultIP = (struct sockaddr_in *)result->ai_addr;
-    std::cout << "resultIP: " << resultIP << std::endl;
+    // std::string serverIP = extractIPv4(&resultIP);
+    // std::cout << serverIP << std::endl;
 
     return 0;
 }
@@ -90,6 +77,19 @@ int createSocket() {
         return 1;
     } else {
         printSocketCreatedSuccess(); 
+    }
+    return 0;
+}
+
+int startWSA() {
+    std::cout << "startWSA() called! Program has begun..." << std::endl;
+    std::cout<< "Initializing Winsock Library... Running WSAStartup" << std::endl;
+    iResult = WSAStartup(MAKEWORD(2,2),&wsaData);    
+    if (iResult != 0) {
+        std::cout << "WSAStartup failed, returned: "<< iResult << std::endl;
+        return 1;
+    } else {
+        std::cout << "WinSock Description: " << wsaData.szDescription << std::endl;
     }
     return 0;
 }
@@ -177,7 +177,7 @@ void serverLoop() {
     while (running) {
         SOCKET ClientSocket = acceptConnection();
         if (ClientSocket == INVALID_SOCKET) break;
-        std::thread(handleRequests, ClientSocket).detach();
+        // std::thread(handleRequests, ClientSocket).detach();
     }
 }
 
