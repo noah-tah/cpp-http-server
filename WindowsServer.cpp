@@ -110,7 +110,10 @@ int bindSocket() {
 }
 
 std::string extractIPv4(struct sockaddr_in *ipv4) {
+    std::cout << "Extract IPv4 function running now" << std::endl;
     std::cout << "Extracting IPv4 address..." << std::endl;
+
+    // Close your eyes please
     char ipstr[INET_ADDRSTRLEN]; 
     if (inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr, INET_ADDRSTRLEN) == NULL) {
         std::cerr << "Failed to convert IPv4 address to string." << std::endl;
@@ -132,8 +135,12 @@ int listenOnSocket() {
 
 SOCKET acceptConnection() {
     SOCKET ClientSocket = INVALID_SOCKET;
+
+    // Buffer struct to hold client information
     struct sockaddr_in clientInfo;
     int clientInfoSize = sizeof(clientInfo);
+
+
     ClientSocket = accept(ListenSocket, (struct sockaddr*)&clientInfo, &clientInfoSize); 
     if (ClientSocket == INVALID_SOCKET) {
         std::cout << "Failed to accept socket! " << WSAGetLastError() << std::endl;
@@ -142,12 +149,15 @@ SOCKET acceptConnection() {
         return INVALID_SOCKET;
     } else {
         extractIPv4(&clientInfo);
+        std::cout << "This is after extractIPv4, before inet_ntop" << std::endl;
+
+        // What is this doing? 
         struct sockaddr_in *ipv4 = (struct sockaddr_in *)&clientInfo;
         char ipstr[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &(ipv4->sin_addr), ipstr, sizeof(ipstr));
         std::cout << "Client connected with IP Address: " << ipstr << std::endl;
     }
-    return ClientSocket;
+    return ClientSocket; 
 }
 
 int handleRequests(SOCKET ClientSocket) {
@@ -174,27 +184,31 @@ void cleanup() {
 }
 
 void serverLoop() {
+    SOCKET ClientSocket = INVALID_SOCKET;
     while (running) {
-        SOCKET ClientSocket = acceptConnection();
-        if (ClientSocket == INVALID_SOCKET) break;
-        // std::thread(handleRequests, ClientSocket).detach();
+        
+        if ((ClientSocket = acceptConnection()) == INVALID_SOCKET) {
+            std::cout << "Failed to accept connection, INVALID SOCKET!" << std::endl;
+            cleanup();
+            return;
+        } else {
+            std::cout << "Connection accepted!" << std::endl;
+            handleRequests(ClientSocket);
+        }
+    
     }
 }
 
 int main () {
+     // Get Server socket ready
     if (startWSA() != 0) return 1; 
     if (resolveLocalAddress() != 0) return 1;
     if (createSocket() != 0) return 1; 
     if (bindSocket() != 0) return 1;
-    if (listenOnSocket() != 0) return 1;
-    SOCKET ClientSocket = INVALID_SOCKET;
-    
-    if (ClientSocket == INVALID_SOCKET) {
-        std::cout << "Accept failed: " << WSAGetLastError() << std::endl;
-        closesocket(ListenSocket);
-        WSACleanup();
-        return 1;
-    }
+    if (listenOnSocket() != 0) return 1;   
+    serverLoop();
+
+
     WSACleanup();
     return 0;
 }
