@@ -39,6 +39,7 @@ int configureSocketHints(struct addrinfo* hints) {
     return 0; 
 }
 
+// How about not commenting this out nimrod
 int resolveLocalAddress() {
     configureSocketHints(&hints);
 
@@ -60,14 +61,14 @@ int resolveLocalAddress() {
     return 0;
 }
 
-void printSocketCreatedSuccess() {
-    std::cout << "Socket created succesfully!" << std::endl;
+void printSocketDetails() {
+    std::cout << "Socket initialized succesfully!" << std::endl;
     std::cout << "Socket bound with ai_family: " << result->ai_family << std::endl;
     std::cout << "Socket bound with ai_socktype: " << result->ai_socktype << std::endl;
     std::cout << "Socket bound with ai_protocol: " << result->ai_protocol << std::endl;
 }
 
-int createSocket() {
+int initializeSocket() {
     ListenSocket = socket(result->ai_family,result->ai_socktype,result->ai_protocol);
     std::cout << "Initialied ListenSocket!" << std::endl;
     if(ListenSocket == INVALID_SOCKET) {
@@ -76,7 +77,7 @@ int createSocket() {
         WSACleanup();
         return 1;
     } else {
-        printSocketCreatedSuccess(); 
+        printSocketDetails(); 
     }
     return 0;
 }
@@ -140,9 +141,9 @@ SOCKET acceptConnection() {
     struct sockaddr_in clientInfo;
     int clientInfoSize = sizeof(clientInfo);
 
-
     ClientSocket = accept(ListenSocket, (struct sockaddr*)&clientInfo, &clientInfoSize); 
     if (ClientSocket == INVALID_SOCKET) {
+
         std::cout << "Failed to accept socket! " << WSAGetLastError() << std::endl;
         closesocket(ListenSocket);
         WSACleanup();
@@ -185,8 +186,13 @@ void cleanup() {
 
 void serverLoop() {
     SOCKET ClientSocket = INVALID_SOCKET;
+    if (listenOnSocket() != 0) {
+        std::cout << "Failed to listen on socket!" << std::endl;
+        cleanup();
+        running = false;
+        return;
+    }
     while (running) {
-        
         if ((ClientSocket = acceptConnection()) == INVALID_SOCKET) {
             std::cout << "Failed to accept connection, INVALID SOCKET!" << std::endl;
             cleanup();
@@ -199,15 +205,25 @@ void serverLoop() {
     }
 }
 
-int main () {
-     // Get Server socket ready
+int createSocket() {
     if (startWSA() != 0) return 1; 
     if (resolveLocalAddress() != 0) return 1;
-    if (createSocket() != 0) return 1; 
+    if (initializeSocket() != 0) return 1; 
     if (bindSocket() != 0) return 1;
-    if (listenOnSocket() != 0) return 1;   
-    serverLoop();
+    
+    std::cout << "Socket created and ready to listen on port " << DEFAULT_PORT << "!" <<std::endl;
 
+    return 0;
+}
+
+int main () {
+     // Get Server socket ready
+    if (createSocket() != 0) return 1;
+    
+    // Run the server
+    while (running) {
+        serverLoop();
+    }
 
     WSACleanup();
     return 0;
