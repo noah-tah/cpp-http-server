@@ -1,1 +1,0 @@
-Set-Location -Path "C:\Users\godih\OneDrive\Documents\NOC\fall-2024\cpp\final-project\cpp-http-server\"
