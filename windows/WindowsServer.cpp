@@ -61,13 +61,6 @@ int resolveLocalAddress() {
     return 0;
 }
 
-void printSocketDetails() {
-    std::cout << "Socket initialized succesfully!" << std::endl;
-    std::cout << "Socket bound with ai_family: " << result->ai_family << std::endl;
-    std::cout << "Socket bound with ai_socktype: " << result->ai_socktype << std::endl;
-    std::cout << "Socket bound with ai_protocol: " << result->ai_protocol << std::endl;
-}
-
 int initializeSocket() {
     ListenSocket = socket(result->ai_family,result->ai_socktype,result->ai_protocol);
     std::cout << "Initialied ListenSocket!" << std::endl;
@@ -77,7 +70,8 @@ int initializeSocket() {
         WSACleanup();
         return 1;
     } else {
-        printSocketDetails(); 
+        std::cout << "Socket initialized succesfully!" << std::endl;
+        std::cout << "Socket bound with ai_family: " << result->ai_family << ", " << "ai_socktype: " << result->ai_socktype << ", " << "ai_protocol: " << result->ai_protocol << std::endl;
     }
     return 0;
 }
