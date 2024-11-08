@@ -39,7 +39,6 @@ int configureSocketHints(struct addrinfo* hints) {
     return 0; 
 }
 
-// How about not commenting this out nimrod
 int resolveLocalAddress() {
     configureSocketHints(&hints);
 
@@ -106,8 +105,6 @@ int bindSocket() {
 std::string extractIPv4(struct sockaddr_in *ipv4) {
     std::cout << "Extract IPv4 function running now" << std::endl;
     std::cout << "Extracting IPv4 address..." << std::endl;
-
-    // Close your eyes please
     char ipstr[INET_ADDRSTRLEN]; 
     if (inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr, INET_ADDRSTRLEN) == NULL) {
         std::cerr << "Failed to convert IPv4 address to string." << std::endl;
