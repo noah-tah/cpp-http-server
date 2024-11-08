@@ -98,8 +98,7 @@ int bindSocket() {
         WSACleanup();
         return 1;
     } else {
-        std::cout << "Socket bound!" << std::endl;
-        freeaddrinfo(result);
+        freeaddrinfo(result); 
     }
     return 0;
 }
@@ -177,16 +176,11 @@ void cleanup() {
 
 void serverLoop() {
     SOCKET ClientSocket = INVALID_SOCKET;
-    if (listenOnSocket() != 0) {
-        std::cout << "Failed to listen on socket!" << std::endl;
-        cleanup();
-        running = false;
-        return;
-    }
     while (running) {
         if ((ClientSocket = acceptConnection()) == INVALID_SOCKET) {
             std::cout << "Failed to accept connection, INVALID SOCKET!" << std::endl;
             cleanup();
+            running = false;
             return;
         } else {
             std::cout << "Connection accepted!" << std::endl;
@@ -196,25 +190,29 @@ void serverLoop() {
     }
 }
 
-int createSocket() {
-    if (startWSA() != 0) return 1; 
+int createServerSocket() {
     if (resolveLocalAddress() != 0) return 1;
     if (initializeSocket() != 0) return 1; 
     if (bindSocket() != 0) return 1;
-    
-    std::cout << "Socket created and ready to listen on port " << DEFAULT_PORT << "!" <<std::endl;
+    if (listenOnSocket() != 0);
+
+    // std::cout << "Socket created and ready to listen on port " << DEFAULT_PORT << "!" <<std::endl;
 
     return 0;
 }
 
 int main () {
-     // Get Server socket ready
-    if (createSocket() != 0) return 1;
+    // Start the Windows Sockets API
+    if (startWSA() != 0) return 1; 
+
+     // Make a Server Socket, and then Listen for connections 
+    if (createServerSocket() != 0) return 1;
+
 
     std::thread serverThread(serverLoop);
 
     serverLoop();
-    std::cout << "Pess Enter to shut down the server..." << std::endl;
+    std::cout << "Press Enter to shut down the server..." << std::endl;
     std::cin.get();
     running = false;
 
