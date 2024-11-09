@@ -149,14 +149,38 @@ SOCKET acceptConnection() {
 }
 
 int handleRequests(SOCKET ClientSocket) {
-    char recvbuf[512];
+    // Create the buffer which will be used to store the data received from the client
+    const int recvbuflen = 1024;
+    char recvbuf[recvbuflen];
+    // iResult will contain the number of bytes received from the client
     int iResult;
-    int recvbuflen = 512;
+    
+    // Receive data from the client, and store it in recvbuf which is 1024 bytes long and stores the data in the form of a char array which is a string in c++
     iResult = recv(ClientSocket, recvbuf, recvbuflen, 0); 
+
+    // If there are bytes received, print the number of bytes received, and send a response to the client
+    // When we receive bytes that means the client has sent a request to the server in the form of a string of bytes which we can convert to a string
     if (iResult > 0) {
+
+
         std::cout << "Bytes received: " << iResult << std::endl;
-        const char* httpResponse = "HTTP/1.1 200 OK\rr\nContent-Type: text/html\r\\n\r\n<html><body><h1>Hello, World!</h1></body></html>";
-        send(ClientSocket, httpResponse, strlen(httpResponse), 0);
+
+        // Convert the received data to a string
+        // Here we are calling a constructor of the std::string class, this initializes the std::string object with the data from recvbuf which is a char array of length iResult
+        std::string requestData(recvbuf, iResult);
+
+        // Print the received data
+        std::cout << "Received: " << requestData << std::endl;
+
+        // Create the reponse to send to the client
+        // HTTP response created using std::string which is a c++ class that represents a string of characters
+        std::string httpResponse("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Hello, World!</h1></body></html>", 1024);
+
+        // Send the response to the client
+        // we have to convert the std::string to a c-style string using the c_str() method, then we find the length of the string using the length() method
+        send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0);
+
+    
     } else if (iResult == 0) {
         std::cout << "0 Received: Connection closing..." << std::endl;
     } else {
