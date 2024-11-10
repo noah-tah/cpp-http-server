@@ -131,6 +131,7 @@ SOCKET acceptConnection() {
     struct sockaddr_in clientInfo;
     int clientInfoSize = sizeof(clientInfo);
 
+    // Accept a client socket
     ClientSocket = accept(ListenSocket, (struct sockaddr*)&clientInfo, &clientInfoSize); 
     if (ClientSocket == INVALID_SOCKET) {
         std::cout << "Failed to accept socket! " << WSAGetLastError() << std::endl;
