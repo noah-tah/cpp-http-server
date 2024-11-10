@@ -59,7 +59,7 @@ int resolveLocalAddress() {
 
     return 0;
 }
-
+// change
 int initializeSocket() {
     ListenSocket = socket(result->ai_family,result->ai_socktype,result->ai_protocol);
     std::cout << "Initialied ListenSocket!" << std::endl;
