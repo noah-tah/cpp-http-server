@@ -218,9 +218,9 @@ void cleanup(SOCKET ListenSocket) {
 }
 
 void serverLoop(SOCKET ListenSocket) {
-    SOCKET ClientSocket = INVALID_SOCKET;
     while (running) {
-        if ((ClientSocket = acceptConnection(ListenSocket)) == INVALID_SOCKET) {
+        SOCKET ClientSocket = acceptConnection(ListenSocket);
+        if (ClientSocket == INVALID_SOCKET) {
             std::cout << "Failed to accept connection, INVALID SOCKET!" << std::endl;
             cleanup(ListenSocket);
             running = false;
@@ -228,6 +228,8 @@ void serverLoop(SOCKET ListenSocket) {
         } else {
             std::cout << "Connection accepted!" << std::endl;
             handleRequests(ClientSocket);
+            std::thread clientThread(handleRequests);
+            clientThread.detach();
         }
     
     }
@@ -259,6 +261,8 @@ int main () {
     std::thread serverThread(serverLoop, ListenSocket);
     std::cout << "Server thread ID: "<< serverThread.get_id() << std::endl;
 
+
+    std::cout << "Press enter to end the server..." << std::endl;
     std::cin.get();
     running = false;
 
