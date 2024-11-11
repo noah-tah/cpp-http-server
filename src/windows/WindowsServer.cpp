@@ -21,25 +21,30 @@
 #pragma comment(lib, "Ws2_32.lib") // Link with Ws2_32.lib (Windows Sockets Library)
 #define DEFAULT_PORT "8080"
 WSADATA wsaData;
-struct addrinfo* result = NULL; 
-struct addrinfo hints; 
+
 int iResult; 
-SOCKET ListenSocket = INVALID_SOCKET;
 std::atomic<bool> running(true); 
 
 void log(const std::string& message);
 
-int configureSocketHints(struct addrinfo* hints) {
+void configureSocketHints(struct addrinfo* hints) {
     memset(hints, 0, sizeof(struct addrinfo));
     ZeroMemory(hints, sizeof(*hints)); 
     hints->ai_family = AF_INET; 
     hints->ai_socktype = SOCK_STREAM; 
     hints->ai_protocol = IPPROTO_TCP;
     hints->ai_flags = AI_PASSIVE;
-    return 0; 
+    return;
 }
 
-int resolveLocalAddress() {
+struct addrinfo* resolveLocalAddress() {
+    // Declare a pointer to an addrinfo struct
+    struct addrinfo* result = NULL; 
+
+    // Declare a struct to hold the hints for the getaddrinfo function
+    struct addrinfo hints; 
+
+    // Configure the hints for the getaddrinfo function
     configureSocketHints(&hints);
 
     // Resolve local address and port
@@ -47,32 +52,46 @@ int resolveLocalAddress() {
     if (iResult != 0) {
         std::cout << "getaddrinfo failed " << iResult << std::endl;
         WSACleanup();
-        return 1;
+        return nullptr;
     } else {
         std::cout << "Memory address of the linked list of addrinfo structures containing the resolved addresses: " << result << std::endl;
     }
 
     struct sockaddr_in *serverBinaryAddress = (struct sockaddr_in *)result->ai_addr;
     struct sockaddr_in* resultIP = (struct sockaddr_in *)result->ai_addr;
-    // std::string serverIP = extractIPv4(&resultIP);
-    // std::cout << serverIP << std::endl;
 
-    return 0;
+    return result;
 }
-// change
-int initializeSocket() {
+
+SOCKET initializeSocket(struct addrinfo* result) {
+    // Create a socket that will listen for incoming connections
+    SOCKET ListenSocket = INVALID_SOCKET;
+
+    // socket() returns a socket descriptor that can be used in later function calls that operate on sockets
     ListenSocket = socket(result->ai_family,result->ai_socktype,result->ai_protocol);
-    std::cout << "Initialied ListenSocket!" << std::endl;
+
+    // Log the file descriptor
+    std::cout << "Initialied ListenSocket with file descriptor: " << ListenSocket << std::endl;
+
+    // Check if the socket was created successfully
     if(ListenSocket == INVALID_SOCKET) {
+        // If the socket was not created successfully, log the error code and return 1
+
+        // Log the error code
         std::cout << "Error at socket(): " << WSAGetLastError() << std::endl;
+
+        // Free the memory allocated for the addrinfo struct
         freeaddrinfo(result);
+        
+        // Close the socket
         WSACleanup();
         return 1;
     } else {
+        // If the socket was created successfully, log the success message
         std::cout << "Socket initialized succesfully!" << std::endl;
         std::cout << "Socket bound with ai_family: " << result->ai_family << ", " << "ai_socktype: " << result->ai_socktype << ", " << "ai_protocol: " << result->ai_protocol << std::endl;
     }
-    return 0;
+    return ListenSocket;
 }
 
 int startWSA() {
@@ -88,7 +107,8 @@ int startWSA() {
     return 0;
 }
 
-int bindSocket() {
+int bindSocket(SOCKET ListenSocket, struct addrinfo* result) {
+    // Bind the socket to the local addres and port
     int iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
         std::cout << "Bind failed with error: " << WSAGetLastError() << std::endl;
@@ -97,6 +117,7 @@ int bindSocket() {
         WSACleanup();
         return 1;
     } else {
+        std:: cout << "Socket bound successfully!" << std::endl;
         freeaddrinfo(result); 
     }
     return 0;
@@ -112,7 +133,7 @@ std::string extractIPv4(struct sockaddr_in *ipv4) {
     return std::string(ipstr);
 }
 
-int listenOnSocket() {
+int listenOnSocket(SOCKET ListenSocket) {
     if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR) {
         std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
         closesocket(ListenSocket);
@@ -124,14 +145,14 @@ int listenOnSocket() {
     return 0;
 }
 
-SOCKET acceptConnection() {
+SOCKET acceptConnection(SOCKET ListenSocket) {
     SOCKET ClientSocket = INVALID_SOCKET;
 
     // Buffer struct to hold client information
     struct sockaddr_in clientInfo;
     int clientInfoSize = sizeof(clientInfo);
 
-    // Accept a client socket
+    std::cout << "Please open a web browser and connect to: http://localhost:8080/ " << std::endl;
     ClientSocket = accept(ListenSocket, (struct sockaddr*)&clientInfo, &clientInfoSize); 
     if (ClientSocket == INVALID_SOCKET) {
         std::cout << "Failed to accept socket! " << WSAGetLastError() << std::endl;
@@ -191,36 +212,38 @@ int handleRequests(SOCKET ClientSocket) {
     return 0;
 }
 
-void cleanup() {
+void cleanup(SOCKET ListenSocket) {
     closesocket(ListenSocket);
     WSACleanup();
 }
 
-void serverLoop() {
-    SOCKET ClientSocket = INVALID_SOCKET;
+void serverLoop(SOCKET ListenSocket) {
     while (running) {
-        if ((ClientSocket = acceptConnection()) == INVALID_SOCKET) {
+        SOCKET ClientSocket = acceptConnection(ListenSocket);
+        if (ClientSocket == INVALID_SOCKET) {
             std::cout << "Failed to accept connection, INVALID SOCKET!" << std::endl;
-            cleanup();
+            cleanup(ListenSocket);
             running = false;
             return;
         } else {
             std::cout << "Connection accepted!" << std::endl;
             handleRequests(ClientSocket);
+            std::thread clientThread(handleRequests);
+            clientThread.detach();
         }
     
     }
 }
 
-int createServerSocket() {
-    if (resolveLocalAddress() != 0) return 1;
-    if (initializeSocket() != 0) return 1; 
-    if (bindSocket() != 0) return 1;
-    if (listenOnSocket() != 0);
+SOCKET createServerSocket() {
+    struct addrinfo* result = resolveLocalAddress();
+    SOCKET ListenSocket = initializeSocket(result); 
+    bindSocket(ListenSocket, result);
+    listenOnSocket(ListenSocket);
 
     // std::cout << "Socket created and ready to listen on port " << DEFAULT_PORT << "!" <<std::endl;
 
-    return 0;
+    return ListenSocket;
 }
 
 int main () {
@@ -228,13 +251,18 @@ int main () {
     if (startWSA() != 0) return 1; 
 
      // Make a Server Socket, and then Listen for connections 
-    if (createServerSocket() != 0) return 1;
+    SOCKET ListenSocket = createServerSocket();
+
+    // Represents a single thread of execution
+    // std::thread is a class template of the C++ Standard Library that provides a representation of a thread
+    // serverThread() is the thread object that will represent the executing serverLoop function
+    // We pass in the function severLoop which will be executed by the serverThread
+    // We also pass in the socket that we created that will be used to listen for incoming connections
+    std::thread serverThread(serverLoop, ListenSocket);
+    std::cout << "Server thread ID: "<< serverThread.get_id() << std::endl;
 
 
-    std::thread serverThread(serverLoop);
-
-    serverLoop();
-    std::cout << "Press Enter to shut down the server..." << std::endl;
+    std::cout << "Press enter to end the server..." << std::endl;
     std::cin.get();
     running = false;
 
