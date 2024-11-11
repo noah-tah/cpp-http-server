@@ -228,8 +228,8 @@ void serverLoop(SOCKET ListenSocket) {
         } else {
             std::cout << "Connection accepted!" << std::endl;
             handleRequests(ClientSocket);
-            std::thread clientThread(handleRequests);
-            clientThread.detach();
+            // std::thread clientThread(handleRequests);
+            // clientThread.detach();
         }
     
     }
