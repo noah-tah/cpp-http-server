@@ -23,6 +23,7 @@
 WSADATA wsaData;
 
 int iResult; 
+std::atomic<bool> running(true); 
 
 void log(const std::string& message);
 
@@ -216,7 +217,9 @@ void cleanup(SOCKET ListenSocket) {
     WSACleanup();
 }
 
-void serverLoop(SOCKET ListenSocket, std::atomic<bool>& running) {
+
+// TODO: Make this logging less annoying and more useful
+void serverLoop(SOCKET ListenSocket) {
     while (running) {
         SOCKET ClientSocket = acceptConnection(ListenSocket);
         if (ClientSocket == INVALID_SOCKET) {
@@ -227,8 +230,6 @@ void serverLoop(SOCKET ListenSocket, std::atomic<bool>& running) {
         } else {
             std::cout << "Connection accepted!" << std::endl;
             handleRequests(ClientSocket);
-
-            // TODO: Fix clientThread
             // std::thread clientThread(handleRequests);
             // clientThread.detach();
         }
@@ -250,7 +251,6 @@ SOCKET createServerSocket() {
 int main () {
     // Start the Windows Sockets API
     if (startWSA() != 0) return 1; 
-    std::atomic<bool> running(true); 
 
      // Make a Server Socket, and then Listen for connections 
     SOCKET ListenSocket = createServerSocket();
@@ -260,23 +260,22 @@ int main () {
     // serverThread() is the thread object that will represent the executing serverLoop function
     // We pass in the function severLoop which will be executed by the serverThread
     // We also pass in the socket that we created that will be used to listen for incoming connections
-    // Finally, we pass in the atomic boolean running which will be used to control the server loop
-    std::thread serverThread(serverLoop, ListenSocket, std::ref(running));
+    std::thread serverThread(serverLoop, ListenSocket);
     std::cout << "Server thread ID: "<< serverThread.get_id() << std::endl;
-
 
 
     std::cout << "Press enter to end the server..." << std::endl;
     std::cin.get();
     running = false;
 
-    // The join() function blocks the calling thread until the thread identified by the thread object finishes executing
-    serverThread.join();
-
-    // TODO: Load a custom HTML file
-    // TODO: Create routing for multiple HTML files
 
     closesocket(ListenSocket);
+
+    serverThread.join();
+    // // Run the server
+    // while (running) {
+    //     serverLoop();
+    // }
 
     WSACleanup();
     return 0;
