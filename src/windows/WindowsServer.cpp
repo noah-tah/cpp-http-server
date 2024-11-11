@@ -24,6 +24,7 @@ WSADATA wsaData;
 
 int iResult; 
 std::atomic<bool> running(true); 
+std::string prettyLineBreak = "\n---------------------------\n";
 
 void log(const std::string& message);
 
@@ -53,12 +54,11 @@ struct addrinfo* resolveLocalAddress() {
         std::cout << "getaddrinfo failed " << iResult << std::endl;
         WSACleanup();
         return nullptr;
-    } else {
-        std::cout << "Memory address of the linked list of addrinfo structures containing the resolved addresses: " << result << std::endl;
-    }
+    } 
 
-    struct sockaddr_in *serverBinaryAddress = (struct sockaddr_in *)result->ai_addr;
-    struct sockaddr_in* resultIP = (struct sockaddr_in *)result->ai_addr;
+    // TODO: Properly print the local ip address
+    // struct sockaddr_in *serverBinaryAddress = (struct sockaddr_in *)result->ai_addr;
+    // extractIPv4(serverBinaryAddress);
 
     return result;
 }
@@ -124,8 +124,6 @@ int bindSocket(SOCKET ListenSocket, struct addrinfo* result) {
 }
 
 std::string extractIPv4(struct sockaddr_in *ipv4) {
-    std::cout << "Extract IPv4 function running now" << std::endl;
-    std::cout << "Extracting IPv4 address..." << std::endl;
     char ipstr[INET_ADDRSTRLEN]; 
     if (inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr, INET_ADDRSTRLEN) == NULL) {
         std::cerr << "Failed to convert IPv4 address to string." << std::endl;
@@ -146,6 +144,7 @@ int listenOnSocket(SOCKET ListenSocket) {
 }
 
 SOCKET acceptConnection(SOCKET ListenSocket) {
+    // Create a socket to hold the clinet connection
     SOCKET ClientSocket = INVALID_SOCKET;
 
     // Buffer struct to hold client information
@@ -153,46 +152,46 @@ SOCKET acceptConnection(SOCKET ListenSocket) {
     int clientInfoSize = sizeof(clientInfo);
 
     std::cout << "Please open a web browser and connect to: http://localhost:8080/ " << std::endl;
+
+    // Accept a connection from a client
     ClientSocket = accept(ListenSocket, (struct sockaddr*)&clientInfo, &clientInfoSize); 
     if (ClientSocket == INVALID_SOCKET) {
         std::cout << "Failed to accept socket! " << WSAGetLastError() << std::endl;
         closesocket(ListenSocket);
         WSACleanup();
         return INVALID_SOCKET;
-    } else {
-        extractIPv4(&clientInfo);
-        std::cout << "This is after extractIPv4, before inet_ntop" << std::endl;
-        struct sockaddr_in *ipv4 = (struct sockaddr_in *)&clientInfo;
-        char ipstr[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &(ipv4->sin_addr), ipstr, sizeof(ipstr));
-        std::cout << "Client connected with IP Address: " << ipstr << std::endl;
-    }
+    } 
+
+    // Extract the IP address from the clientInfo struct, then print it
+    std::string ipstr = extractIPv4(&clientInfo);
+    std::cout << "Client connected with IP Address: " << ipstr << std::endl;
+
     return ClientSocket; 
 }
 
+
 int handleRequests(SOCKET ClientSocket) {
+
     // Create the buffer which will be used to store the data received from the client
     const int recvbuflen = 1024;
     char recvbuf[recvbuflen];
+
     // iResult will contain the number of bytes received from the client
     int iResult;
     
-    // Receive data from the client, and store it in recvbuf which is 1024 bytes long and stores the data in the form of a char array which is a string in c++
+    // Receive data from the client
     iResult = recv(ClientSocket, recvbuf, recvbuflen, 0); 
 
     // If there are bytes received, print the number of bytes received, and send a response to the client
-    // When we receive bytes that means the client has sent a request to the server in the form of a string of bytes which we can convert to a string
     if (iResult > 0) {
-
-
         std::cout << "Bytes received: " << iResult << std::endl;
 
+        std::cout << "Just to see what is in recvbuf before string conversion: " << prettyLineBreak << recvbuf << std::endl;
         // Convert the received data to a string
-        // Here we are calling a constructor of the std::string class, this initializes the std::string object with the data from recvbuf which is a char array of length iResult
         std::string requestData(recvbuf, iResult);
 
         // Print the received data
-        std::cout << "Received: " << requestData << std::endl;
+        std::cout << "Received: "  << prettyLineBreak << requestData << std::endl;
 
         // Create the reponse to send to the client
         // HTTP response created using std::string which is a c++ class that represents a string of characters
@@ -220,6 +219,8 @@ void cleanup(SOCKET ListenSocket) {
 
 // TODO: Make this logging less annoying and more useful
 void serverLoop(SOCKET ListenSocket) {
+
+    // Run the server
     while (running) {
         SOCKET ClientSocket = acceptConnection(ListenSocket);
         if (ClientSocket == INVALID_SOCKET) {
@@ -227,12 +228,12 @@ void serverLoop(SOCKET ListenSocket) {
             cleanup(ListenSocket);
             running = false;
             return;
-        } else {
-            std::cout << "Connection accepted!" << std::endl;
-            handleRequests(ClientSocket);
-            // std::thread clientThread(handleRequests);
-            // clientThread.detach();
         }
+
+        std::cout << "Connection accepted!" << std::endl;
+        handleRequests(ClientSocket);
+        // std::thread clientThread(handleRequests);
+        // clientThread.detach();
     
     }
 }
@@ -248,6 +249,9 @@ SOCKET createServerSocket() {
     return ListenSocket;
 }
 
+
+
+
 int main () {
     // Start the Windows Sockets API
     if (startWSA() != 0) return 1; 
@@ -255,11 +259,7 @@ int main () {
      // Make a Server Socket, and then Listen for connections 
     SOCKET ListenSocket = createServerSocket();
 
-    // Represents a single thread of execution
-    // std::thread is a class template of the C++ Standard Library that provides a representation of a thread
-    // serverThread() is the thread object that will represent the executing serverLoop function
-    // We pass in the function severLoop which will be executed by the serverThread
-    // We also pass in the socket that we created that will be used to listen for incoming connections
+    // Represents a single thread of execution, executes serverLoop
     std::thread serverThread(serverLoop, ListenSocket);
     std::cout << "Server thread ID: "<< serverThread.get_id() << std::endl;
 
