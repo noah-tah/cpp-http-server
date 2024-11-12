@@ -132,6 +132,7 @@ std::string extractIPv4(struct sockaddr_in *ipv4) {
 }
 
 int listenOnSocket(SOCKET ListenSocket) {
+
     if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR) {
         std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
         closesocket(ListenSocket);
@@ -143,7 +144,7 @@ int listenOnSocket(SOCKET ListenSocket) {
     return 0;
 }
 
-SOCKET acceptConnection(SOCKET ListenSocket) {
+SOCKET acceptConnections(SOCKET ListenSocket) {
     // Create a socket to hold the clinet connection
     SOCKET ClientSocket = INVALID_SOCKET;
 
@@ -156,9 +157,24 @@ SOCKET acceptConnection(SOCKET ListenSocket) {
     // Accept a connection from a client
     ClientSocket = accept(ListenSocket, (struct sockaddr*)&clientInfo, &clientInfoSize); 
     if (ClientSocket == INVALID_SOCKET) {
-        std::cout << "Failed to accept socket! " << WSAGetLastError() << std::endl;
+        int error = WSAGetLastError();
+        std::cout << "Failed to accept connection on socket! " << error << std::endl;
+
+        // Handle specific errors
+        if (error == WSAEINTR || error == WSAECONNRESET) {
+            // continue;
+        } else {
+            std::cout << "Critical error, closing socket and exiting..." << std::endl;
+            closesocket(ListenSocket);
+            WSACleanup();
+            running = false;
+            return INVALID_SOCKET;
+        }
+
+        
         closesocket(ListenSocket);
         WSACleanup();
+        running = false;
         return INVALID_SOCKET;
     } 
 
@@ -222,7 +238,16 @@ void serverLoop(SOCKET ListenSocket) {
 
     // Run the server
     while (running) {
-        SOCKET ClientSocket = acceptConnection(ListenSocket);
+        // SOCKET ClientSocket = INVALID_SOCKET;
+
+        // Create a new execution thread to wait for connection from host
+        SOCKET ClientSocket = acceptConnections(ListenSocket);
+
+        // TODO: Finish implementing multithreaded connection acceptions
+        // std::thread acceptThread(acceptConnections, ListenSocket);
+        // .detatch or .join()?
+        // acceptThread.join();
+
         if (ClientSocket == INVALID_SOCKET) {
             std::cout << "Failed to accept connection, INVALID SOCKET!" << std::endl;
             cleanup(ListenSocket);
@@ -231,17 +256,26 @@ void serverLoop(SOCKET ListenSocket) {
         }
 
         std::cout << "Connection accepted!" << std::endl;
-        handleRequests(ClientSocket);
-        // std::thread clientThread(handleRequests);
-        // clientThread.detach();
+
+        // Create a new execution thread to handle the requests from the client
+        std::thread clientThread(handleRequests, ClientSocket);
+        // .detatch or .join()?
+        clientThread.detach();
     
     }
 }
 
 SOCKET createServerSocket() {
+    // Resolve the local address
     struct addrinfo* result = resolveLocalAddress();
-    SOCKET ListenSocket = initializeSocket(result); 
+
+    // Create a socket that will listen for incoming connections
+    SOCKET ListenSocket = initializeSocket(result);
+    
+    // Bind the socket to the local address and port
     bindSocket(ListenSocket, result);
+
+    // Listen on the socket
     listenOnSocket(ListenSocket);
 
     // std::cout << "Socket created and ready to listen on port " << DEFAULT_PORT << "!" <<std::endl;
@@ -256,26 +290,23 @@ int main () {
     // Start the Windows Sockets API
     if (startWSA() != 0) return 1; 
 
-     // Make a Server Socket, and then Listen for connections 
+    // Make a Server Socket, and then Listen for connections 
     SOCKET ListenSocket = createServerSocket();
+    if (ListenSocket == INVALID_SOCKET) return 1;
 
-    // Represents a single thread of execution, executes serverLoop
+    // Start the server loop on a new thread
     std::thread serverThread(serverLoop, ListenSocket);
     std::cout << "Server thread ID: "<< serverThread.get_id() << std::endl;
 
-
+    // Wait for user input to end the server
     std::cout << "Press enter to end the server..." << std::endl;
     std::cin.get();
     running = false;
 
-
+    // Close the listening socket
     closesocket(ListenSocket);
 
     serverThread.join();
-    // // Run the server
-    // while (running) {
-    //     serverLoop();
-    // }
 
     WSACleanup();
     return 0;
