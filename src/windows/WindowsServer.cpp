@@ -185,7 +185,14 @@ SOCKET acceptConnections(SOCKET ListenSocket) {
     return ClientSocket; 
 }
 
-
+// std::string parseData(std::string rawRequest) {
+//     // Split the request into lines, split at `\r\n`
+//     std::string delimiter = "\r\n";
+//     size_t pos = 0;
+//     for (std::string line; std::getline(rawRequest, pos, delimiter);) {
+//         std::cout << line << std::endl;
+//     }
+// }
 int handleRequests(SOCKET ClientSocket) {
 
     // Create the buffer which will be used to store the data received from the client
@@ -203,14 +210,28 @@ int handleRequests(SOCKET ClientSocket) {
         std::cout << "Bytes received: " << iResult << std::endl;
 
         std::cout << "Just to see what is in recvbuf before string conversion: " << prettyLineBreak << recvbuf << std::endl;
+
         // Convert the received data to a string
         std::string requestData(recvbuf, iResult);
 
         // Print the received data
         std::cout << "Received: "  << prettyLineBreak << requestData << std::endl;
+        // std::string parsedData = parseData(requestData);
+
+        if (requestData.find("GET /") != std::string::npos) {
+            std::cout << "index.html" << std::endl;
+        } else if (requestData.find("GET /contact") != std::string::npos) {
+            std::cout << "contact.html" << std::endl;
+        } else if (requestData.find("GET /about") != std::string::npos) {
+            std::cout << "about.html" << std::endl;
+        } else if (requestData.find("GET /projects") != std::string::npos) {
+            std::cout << "projects.html" << std::endl;
+        } else {
+            std::cout << "404 Not Found"<< std::endl;
+        }
+
 
         // Create the reponse to send to the client
-        // HTTP response created using std::string which is a c++ class that represents a string of characters
         std::string httpResponse("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Hello, World!</h1></body></html>", 1024);
 
         // Send the response to the client
@@ -268,18 +289,31 @@ void serverLoop(SOCKET ListenSocket) {
 SOCKET createServerSocket() {
     // Resolve the local address
     struct addrinfo* result = resolveLocalAddress();
+    if (result == nullptr) {
+        return INVALID_SOCKET;
+    }
 
     // Create a socket that will listen for incoming connections
     SOCKET ListenSocket = initializeSocket(result);
+    if (ListenSocket == INVALID_SOCKET) {
+        freeaddrinfo(result);
+        return INVALID_SOCKET;
+    }
     
     // Bind the socket to the local address and port
-    bindSocket(ListenSocket, result);
+    if (bindSocket(ListenSocket, result) != 0) {
+        return INVALID_SOCKET;
+    }
+
+    // Free the memory allocated for the addrinfo struct
+    freeaddrinfo(result);
 
     // Listen on the socket
-    listenOnSocket(ListenSocket);
+    if (listenOnSocket(ListenSocket) != 0) {
+        return INVALID_SOCKET;
+    }
 
-    // std::cout << "Socket created and ready to listen on port " << DEFAULT_PORT << "!" <<std::endl;
-
+    std::cout << "Socket created and ready to listen on port " << DEFAULT_PORT << '!' << std::endl;
     return ListenSocket;
 }
 
