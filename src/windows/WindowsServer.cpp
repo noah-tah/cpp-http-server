@@ -298,11 +298,11 @@ int handleRequests(SOCKET ClientSocket) {
         std::string filePath;
         if (request.path == "/" || request.path == "/index.html") {
             filePath = baseDirectory + "index.html";
-        } else if (request.path == "/contact") {
+        } else if (request.path == "/contact.html") {
             filePath = baseDirectory + "contact.html";
-        } else if (request.path == "/about") {
+        } else if (request.path == "/about.html") {
             filePath = baseDirectory + "about.html";
-        } else if (request.path == "/projects") {
+        } else if (request.path == "/projects.html") {
             filePath = baseDirectory + "projects.html";
         } else {
             std::string httpResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html><body><h1>400 Bad Request</h1></body></html>";
