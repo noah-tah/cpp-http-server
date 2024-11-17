@@ -17,6 +17,9 @@
 #include <thread>
 #include <atomic>
 #include <string>
+#include <map>
+#include <string>
+#include <sstream>
 
 #pragma comment(lib, "Ws2_32.lib") // Link with Ws2_32.lib (Windows Sockets Library)
 #define DEFAULT_PORT "8080"
@@ -185,14 +188,7 @@ SOCKET acceptConnections(SOCKET ListenSocket) {
     return ClientSocket; 
 }
 
-// std::string parseData(std::string rawRequest) {
-//     // Split the request into lines, split at `\r\n`
-//     std::string delimiter = "\r\n";
-//     size_t pos = 0;
-//     for (std::string line; std::getline(rawRequest, pos, delimiter);) {
-//         std::cout << line << std::endl;
-//     }
-// }
+
 int handleRequests(SOCKET ClientSocket) {
 
     // Create the buffer which will be used to store the data received from the client
@@ -259,10 +255,10 @@ void serverLoop(SOCKET ListenSocket) {
 
     // Run the server
     while (running) {
-        // SOCKET ClientSocket = INVALID_SOCKET;
+        SOCKET ClientSocket = INVALID_SOCKET;
 
         // Create a new execution thread to wait for connection from host
-        SOCKET ClientSocket = acceptConnections(ListenSocket);
+        ClientSocket = acceptConnections(ListenSocket);
 
         // TODO: Finish implementing multithreaded connection acceptions
         // std::thread acceptThread(acceptConnections, ListenSocket);
@@ -306,19 +302,67 @@ SOCKET createServerSocket() {
     }
 
     // Free the memory allocated for the addrinfo struct
-    freeaddrinfo(result);
+    // freeaddrinfo(result);
 
     // Listen on the socket
     if (listenOnSocket(ListenSocket) != 0) {
         return INVALID_SOCKET;
     }
 
+
     std::cout << "Socket created and ready to listen on port " << DEFAULT_PORT << '!' << std::endl;
     return ListenSocket;
 }
 
+// Define the structure of the HTTPrequest
+struct HTTPRequest {
+    std::string method; // GET, POST, PUT, DELETE
+    std::string path; // index.html
+    std::string version; // HTTP/1.1
+    std::string host; // localhost:8080
+    std::map<std::string, std::string> headers; // key-value pairs
+    std::string body;
+};
 
+bool parseRequest(const std::string& requestData, HTTPRequest& request) {
+    // Create a string stream from the request data
+    std::istringstream requestStream(requestData);
+    std::string line;
 
+    // Parse the request line
+    if (std::getline(requestStream, line) || line.empty()) {
+        return false;
+    }
+    std::istringstream requestLineStream(line);
+    if (!(requestLineStream >> request.method >> request.path >> request.version)) {
+        return false;
+    }
+
+    // Parse headers
+    while (std::getline(requestStream, line) && !line.empty()) {
+        if (line.back() == '\r') { 
+            line.pop_back(); 
+        }
+        size_t delimiterPos = line.find(':');
+        if (delimiterPos != std::string::npos) {
+            std::string headerName = line.substr(0, delimiterPos);
+            std::string headerValue = line.substr(delimiterPos + 1);
+            headerValue.erase(0, headerValue.find_first_not_of(" \t"));
+            request.headers[headerName] = headerValue;
+        }
+    }
+
+    // Prase body if Content-Length is specified
+    auto it = request.headers.find("Content-Length");
+    if (it != request.headers.end()) {
+        int contentLength = std::stoi(it->second);
+        std::string body(contentLength, '\0');
+        requestStream.read(&body[0], contentLength);
+        request.body = body;
+    }
+
+    return true;
+}
 
 int main () {
     // Start the Windows Sockets API
@@ -328,6 +372,25 @@ int main () {
     SOCKET ListenSocket = createServerSocket();
     if (ListenSocket == INVALID_SOCKET) return 1;
 
+    std::string requestData =
+        "GET /index.html HTTP/1.1\r\n"
+        "Host: localhost:8080\r\n"
+        "Content-Length: 13\r\n"
+        "\r\n"
+        "Hello, World!";
+
+    HTTPRequest request;
+    if (parseRequest(requestData, request)) {
+        std::cout << "Parsed request:" << std::endl;
+        std::cout << "Method: " << request.method << std::endl;
+        std::cout << "Path: " << request.path << std::endl;
+        std::cout << "Version: " << request.version << std::endl;
+        std::cout << "Host: " << request.headers["Host"] << std::endl;
+        std::cout << "Content-Length: " << request.headers["Content-Length"] << std::endl;
+        std::cout << "Body: " << request.body << std::endl;
+    } else {
+        std::cout << "Failed to parse request" << std::endl;
+    }
     // Start the server loop on a new thread
     std::thread serverThread(serverLoop, ListenSocket);
     std::cout << "Server thread ID: "<< serverThread.get_id() << std::endl;
@@ -340,7 +403,7 @@ int main () {
     // Close the listening socket
     closesocket(ListenSocket);
 
-    serverThread.join();
+    // serverThread.join();
 
     WSACleanup();
     return 0;
