@@ -320,9 +320,17 @@ int handleRequests(SOCKET ClientSocket) {
             return 0;
         }
 
+        // Create the HTTP response
+        std::string httpResponse = "HTTP/1.1 200 OK\r\n"
+                                   "Content-Type: text/html\r\n"
+                                   "Content-Length: " + std::to_string(content.length()) + "\r\n\r\n" + content;
+
+        // Log the complete HTTP response for debugging
+        std::cout << "Sending response:\n" << httpResponse << std::endl;
+
 
         // Send the response to the client
-        send(ClientSocket, content.c_str(), content.length(), 0);
+        send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0);
 
     
     } else if (iResult == 0) {
