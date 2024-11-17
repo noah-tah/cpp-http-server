@@ -15,11 +15,13 @@
 #include <iostream>
 #include <windows.h>
 #include <thread>
-#include <atomic>
-#include <string>
-#include <map>
-#include <string>
-#include <sstream>
+#include <atomic> 
+#include <map> 
+#include <string> 
+#include <sstream> 
+#include <iostream> 
+#include <xtree> 
+#include <fstream>
 
 #pragma comment(lib, "Ws2_32.lib") // Link with Ws2_32.lib (Windows Sockets Library)
 #define DEFAULT_PORT "8080"
@@ -41,6 +43,55 @@ void configureSocketHints(struct addrinfo* hints) {
     return;
 }
 
+// Define the structure of the HTTPrequest
+struct HTTPRequest {
+    std::string method; // GET, POST, PUT, DELETE
+    std::string path; // index.html
+    std::string version; // HTTP/1.1
+    std::string host; // localhost:8080
+    std::map<std::string, std::string> headers; // key-value pairs
+    std::string body;
+};
+
+bool parseRequest(const std::string& requestData, HTTPRequest& request) {
+    // Create a string stream from the request data
+    std::istringstream requestStream(requestData);
+    std::string line;
+
+    // Parse the request line
+    if (!std::getline(requestStream, line) || line.empty()) {
+        return false;
+    }
+    std::istringstream requestLineStream(line);
+    if (!(requestLineStream >> request.method >> request.path >> request.version)) {
+        return false;
+    }
+
+    // Parse headers
+    while (std::getline(requestStream, line) && !line.empty()) {
+        if (line.back() == '\r') { 
+            line.pop_back(); 
+        }
+        size_t delimiterPos = line.find(':');
+        if (delimiterPos != std::string::npos) {
+            std::string headerName = line.substr(0, delimiterPos);
+            std::string headerValue = line.substr(delimiterPos + 1);
+            headerValue.erase(0, headerValue.find_first_not_of(" \t"));
+            request.headers[headerName] = headerValue;
+        }
+    }
+
+    // Prase body if Content-Length is specified
+    auto it = request.headers.find("Content-Length");
+    if (it != request.headers.end()) {
+        int contentLength = std::stoi(it->second);
+        std::string body(contentLength, '\0');
+        requestStream.read(&body[0], contentLength);
+        request.body = body;
+    }
+
+    return true;
+}
 struct addrinfo* resolveLocalAddress() {
     // Declare a pointer to an addrinfo struct
     struct addrinfo* result = NULL; 
@@ -188,6 +239,15 @@ SOCKET acceptConnections(SOCKET ListenSocket) {
     return ClientSocket; 
 }
 
+std::string readFile(const std::string& filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        return "";
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
 
 int handleRequests(SOCKET ClientSocket) {
 
@@ -203,27 +263,57 @@ int handleRequests(SOCKET ClientSocket) {
 
     // If there are bytes received, print the number of bytes received, and send a response to the client
     if (iResult > 0) {
-        std::cout << "Bytes received: " << iResult << std::endl;
 
-        std::cout << "Just to see what is in recvbuf before string conversion: " << prettyLineBreak << recvbuf << std::endl;
+
 
         // Convert the received data to a string
         std::string requestData(recvbuf, iResult);
-
-        // Print the received data
+        // Print the raw HTTP request
         std::cout << "Received: "  << prettyLineBreak << requestData << std::endl;
-        // std::string parsedData = parseData(requestData);
+        
+        // Create a HTTPRequest object to store the parsed request 
+        HTTPRequest request;
 
-        if (requestData.find("GET /") != std::string::npos) {
+        // Parse the request, and log the results
+        if (parseRequest(requestData, request)) {
+            std::cout << "Parsed request:" << std::endl;
+            std::cout << "Method: " << request.method << std::endl;
+            std::cout << "Path: " << request.path << std::endl;
+            std::cout << "Version: " << request.version << std::endl;
+            std::cout << "Host: " << request.headers["Host"] << std::endl;
+            std::cout << "Content-Length: " << request.headers["Content-Length"] << std::endl;
+            std::cout << "Body: " << request.body << std::endl;
+        } else {
+            std::cout << "Failed to parse request" << std::endl;
+            std::string httpResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html><body><h1>400 Bad Request</h1></body></html>";
+            send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0);
+            closesocket(ClientSocket);
+            return 0;
+        }
+
+        std::string filePath;
+        if (request.path == "/" || request.path == "/index.html") {
             std::cout << "index.html" << std::endl;
-        } else if (requestData.find("GET /contact") != std::string::npos) {
+        } else if (request.path == "/contact") {
             std::cout << "contact.html" << std::endl;
-        } else if (requestData.find("GET /about") != std::string::npos) {
+        } else if (request.path == "/about") {
             std::cout << "about.html" << std::endl;
-        } else if (requestData.find("GET /projects") != std::string::npos) {
+        } else if (request.path == "/projects") {
             std::cout << "projects.html" << std::endl;
         } else {
-            std::cout << "404 Not Found"<< std::endl;
+            std::string httpResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html><body><h1>400 Bad Request</h1></body></html>";
+            send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0);
+            closesocket(ClientSocket);
+            return 0;
+        }
+        
+        // Read the HTML File onto the server
+        std::string content = readFile(filePath);
+        if (content.empty()) {
+            std::string httpResponse = "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html\r\n\r\n<html><body><h1>500 Internal Server Error</h1></body></html>";
+            send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0);
+            closesocket(ClientSocket);
+            return 0;
         }
 
 
@@ -314,55 +404,8 @@ SOCKET createServerSocket() {
     return ListenSocket;
 }
 
-// Define the structure of the HTTPrequest
-struct HTTPRequest {
-    std::string method; // GET, POST, PUT, DELETE
-    std::string path; // index.html
-    std::string version; // HTTP/1.1
-    std::string host; // localhost:8080
-    std::map<std::string, std::string> headers; // key-value pairs
-    std::string body;
-};
 
-bool parseRequest(const std::string& requestData, HTTPRequest& request) {
-    // Create a string stream from the request data
-    std::istringstream requestStream(requestData);
-    std::string line;
 
-    // Parse the request line
-    if (std::getline(requestStream, line) || line.empty()) {
-        return false;
-    }
-    std::istringstream requestLineStream(line);
-    if (!(requestLineStream >> request.method >> request.path >> request.version)) {
-        return false;
-    }
-
-    // Parse headers
-    while (std::getline(requestStream, line) && !line.empty()) {
-        if (line.back() == '\r') { 
-            line.pop_back(); 
-        }
-        size_t delimiterPos = line.find(':');
-        if (delimiterPos != std::string::npos) {
-            std::string headerName = line.substr(0, delimiterPos);
-            std::string headerValue = line.substr(delimiterPos + 1);
-            headerValue.erase(0, headerValue.find_first_not_of(" \t"));
-            request.headers[headerName] = headerValue;
-        }
-    }
-
-    // Prase body if Content-Length is specified
-    auto it = request.headers.find("Content-Length");
-    if (it != request.headers.end()) {
-        int contentLength = std::stoi(it->second);
-        std::string body(contentLength, '\0');
-        requestStream.read(&body[0], contentLength);
-        request.body = body;
-    }
-
-    return true;
-}
 
 int main () {
     // Start the Windows Sockets API
@@ -372,25 +415,6 @@ int main () {
     SOCKET ListenSocket = createServerSocket();
     if (ListenSocket == INVALID_SOCKET) return 1;
 
-    std::string requestData =
-        "GET /index.html HTTP/1.1\r\n"
-        "Host: localhost:8080\r\n"
-        "Content-Length: 13\r\n"
-        "\r\n"
-        "Hello, World!";
-
-    HTTPRequest request;
-    if (parseRequest(requestData, request)) {
-        std::cout << "Parsed request:" << std::endl;
-        std::cout << "Method: " << request.method << std::endl;
-        std::cout << "Path: " << request.path << std::endl;
-        std::cout << "Version: " << request.version << std::endl;
-        std::cout << "Host: " << request.headers["Host"] << std::endl;
-        std::cout << "Content-Length: " << request.headers["Content-Length"] << std::endl;
-        std::cout << "Body: " << request.body << std::endl;
-    } else {
-        std::cout << "Failed to parse request" << std::endl;
-    }
     // Start the server loop on a new thread
     std::thread serverThread(serverLoop, ListenSocket);
     std::cout << "Server thread ID: "<< serverThread.get_id() << std::endl;
