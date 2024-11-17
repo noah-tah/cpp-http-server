@@ -291,15 +291,19 @@ int handleRequests(SOCKET ClientSocket) {
             return 0;
         }
 
+        // Specify the base directory where HTML files are stored
+        std::string baseDirectory = "../pages/";
+
+        // Specify the filePath baed on the parsed path
         std::string filePath;
         if (request.path == "/" || request.path == "/index.html") {
-            std::cout << "index.html" << std::endl;
+            filePath = baseDirectory + "index.html";
         } else if (request.path == "/contact") {
-            std::cout << "contact.html" << std::endl;
+            filePath = baseDirectory + "contact.html";
         } else if (request.path == "/about") {
-            std::cout << "about.html" << std::endl;
+            filePath = baseDirectory + "about.html";
         } else if (request.path == "/projects") {
-            std::cout << "projects.html" << std::endl;
+            filePath = baseDirectory + "projects.html";
         } else {
             std::string httpResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html><body><h1>400 Bad Request</h1></body></html>";
             send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0);
@@ -307,7 +311,7 @@ int handleRequests(SOCKET ClientSocket) {
             return 0;
         }
         
-        // Read the HTML File onto the server
+        // Read the HTML file content 
         std::string content = readFile(filePath);
         if (content.empty()) {
             std::string httpResponse = "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html\r\n\r\n<html><body><h1>500 Internal Server Error</h1></body></html>";
@@ -317,12 +321,8 @@ int handleRequests(SOCKET ClientSocket) {
         }
 
 
-        // Create the reponse to send to the client
-        std::string httpResponse("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Hello, World!</h1></body></html>", 1024);
-
         // Send the response to the client
-        // we have to convert the std::string to a c-style string using the c_str() method, then we find the length of the string using the length() method
-        send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0);
+        send(ClientSocket, content.c_str(), content.length(), 0);
 
     
     } else if (iResult == 0) {
@@ -390,9 +390,6 @@ SOCKET createServerSocket() {
     if (bindSocket(ListenSocket, result) != 0) {
         return INVALID_SOCKET;
     }
-
-    // Free the memory allocated for the addrinfo struct
-    // freeaddrinfo(result);
 
     // Listen on the socket
     if (listenOnSocket(ListenSocket) != 0) {
