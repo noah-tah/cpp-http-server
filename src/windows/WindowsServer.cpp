@@ -33,6 +33,7 @@ std::string prettyLineBreak = "\n---------------------------\n";
 
 void log(const std::string& message);
 
+// Configure the socket hints for the getaddrinfo function
 void configureSocketHints(struct addrinfo* hints) {
     memset(hints, 0, sizeof(struct addrinfo));
     ZeroMemory(hints, sizeof(*hints)); 
@@ -53,6 +54,7 @@ struct HTTPRequest {
     std::string body;
 };
 
+// Parse the HTTP request
 bool parseRequest(const std::string& requestData, HTTPRequest& request) {
     // Create a string stream from the request data
     std::istringstream requestStream(requestData);
@@ -69,50 +71,48 @@ bool parseRequest(const std::string& requestData, HTTPRequest& request) {
 
     // Parse headers
     while (std::getline(requestStream, line) && !line.empty()) {
-        if (line.back() == '\r') { 
-            line.pop_back(); 
+        if (line.back() == '\r') { // Remove the carriage return character if it exists
+            line.pop_back();  // std::string::pop_back() removes the last character of the string
         }
+        // Find the position of the delimiter which seperates the key and value
         size_t delimiterPos = line.find(':');
-        if (delimiterPos != std::string::npos) {
-            std::string headerName = line.substr(0, delimiterPos);
-            std::string headerValue = line.substr(delimiterPos + 1);
-            headerValue.erase(0, headerValue.find_first_not_of(" \t"));
-            request.headers[headerName] = headerValue;
+        // if the delimiter is found then add the key-value pair to the headers map
+        if (delimiterPos != std::string::npos) { // std::string::npos is the maximum value representable by the size_t type
+            std::string headerName = line.substr(0, delimiterPos); // Extract the key
+            std::string headerValue = line.substr(delimiterPos + 1); // Extract the value
+            headerValue.erase(0, headerValue.find_first_not_of(" \t")); // Remove leading whitespace
+            request.headers[headerName] = headerValue; // Add the key-value pair to the headers map
         }
     }
 
-    // Prase body if Content-Length is specified
-    auto it = request.headers.find("Content-Length");
-    if (it != request.headers.end()) {
-        int contentLength = std::stoi(it->second);
-        std::string body(contentLength, '\0');
-        requestStream.read(&body[0], contentLength);
-        request.body = body;
+    // Parse body if Content-Length is specified in the headers
+    auto it = request.headers.find("Content-Length"); // Find the Content-Length header
+    if (it != request.headers.end()) { // Check if the Content-Length header exists
+        int contentLength = std::stoi(it->second); // std::stoi converts a string to an integer, it->second is the value of the Content-Length header
+        std::string body(contentLength, '\0'); // Create a string of length contentLength filled with null characters
+        requestStream.read(&body[0], contentLength); // Read contentLength bytes from the requestStream into the body string
+        request.body = body; // Set the body of the request to the body string
     }
 
     return true;
 }
 struct addrinfo* resolveLocalAddress() {
     // Declare a pointer to an addrinfo struct
-    struct addrinfo* result = NULL; 
+    struct addrinfo* result = NULL;
 
     // Declare a struct to hold the hints for the getaddrinfo function
-    struct addrinfo hints; 
+    struct addrinfo hints;
 
     // Configure the hints for the getaddrinfo function
     configureSocketHints(&hints);
 
     // Resolve local address and port
-    iResult = getaddrinfo(NULL,DEFAULT_PORT,&hints,&result);
+    iResult = getaddrinfo(NULL,DEFAULT_PORT,&hints,&result); // getaddrinfo returns 0 on success
     if (iResult != 0) {
         std::cout << "getaddrinfo failed " << iResult << std::endl;
         WSACleanup();
         return nullptr;
     } 
-
-    // TODO: Properly print the local ip address
-    // struct sockaddr_in *serverBinaryAddress = (struct sockaddr_in *)result->ai_addr;
-    // extractIPv4(serverBinaryAddress);
 
     return result;
 }
@@ -121,8 +121,8 @@ SOCKET initializeSocket(struct addrinfo* result) {
     // Create a socket that will listen for incoming connections
     SOCKET ListenSocket = INVALID_SOCKET;
 
-    // socket() returns a socket descriptor that can be used in later function calls that operate on sockets
-    ListenSocket = socket(result->ai_family,result->ai_socktype,result->ai_protocol);
+    // Create a socket using the information from the addrinfo struct `result`
+    ListenSocket = socket(result->ai_family,result->ai_socktype,result->ai_protocol); // socket() returns INVALID_SOCKET on failure, otherwise a new socket descriptor
 
     // Log the file descriptor
     std::cout << "Initialied ListenSocket with file descriptor: " << ListenSocket << std::endl;
@@ -151,19 +151,19 @@ SOCKET initializeSocket(struct addrinfo* result) {
 int startWSA() {
     std::cout << "startWSA() called! Program has begun..." << std::endl;
     std::cout<< "Initializing Winsock Library... Running WSAStartup" << std::endl;
-    iResult = WSAStartup(MAKEWORD(2,2),&wsaData);    
+    iResult = WSAStartup(MAKEWORD(2,2),&wsaData); // MAKEWORD(2,2) requests version 2.2 of Winsock on Windows, &wsaData is a pointer to a WSADATA struct
     if (iResult != 0) {
         std::cout << "WSAStartup failed, returned: "<< iResult << std::endl;
         return 1;
     } else {
-        std::cout << "WinSock Description: " << wsaData.szDescription << std::endl;
+        std::cout << "WinSock Description: " << wsaData.szDescription << std::endl; // wsaData.szDescription is a char array containing a null-terminated string describing the Windows Sockets implementation
     }
     return 0;
 }
 
 int bindSocket(SOCKET ListenSocket, struct addrinfo* result) {
     // Bind the socket to the local addres and port
-    int iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    int iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen); // result is a pointer to an addrinfo struct, which contains the local address and port
     if (iResult == SOCKET_ERROR) {
         std::cout << "Bind failed with error: " << WSAGetLastError() << std::endl;
         freeaddrinfo(result);
@@ -178,16 +178,17 @@ int bindSocket(SOCKET ListenSocket, struct addrinfo* result) {
 }
 
 std::string extractIPv4(struct sockaddr_in *ipv4) {
-    char ipstr[INET_ADDRSTRLEN]; 
-    if (inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr, INET_ADDRSTRLEN) == NULL) {
+    // Convert the IP address to a string
+    char ipstr[INET_ADDRSTRLEN]; // INET_ADDRSTRLEN is the maximum length of an IPv4 address string
+    if (inet_ntop(AF_INET,&(ipv4->sin_addr),ipstr, INET_ADDRSTRLEN) == NULL) { // inet_ntop converts an IPv4 or IPv6 address to a string
         std::cerr << "Failed to convert IPv4 address to string." << std::endl;
     }
     return std::string(ipstr);
 }
 
 int listenOnSocket(SOCKET ListenSocket) {
-
-    if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR) {
+    // Listen on the socket for incoming connections
+    if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR) { // SOMAXCONN is the maximum number of pending connections that can be queued
         std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
         closesocket(ListenSocket);
         WSACleanup();
@@ -209,13 +210,13 @@ SOCKET acceptConnections(SOCKET ListenSocket) {
     std::cout << "Please open a web browser and connect to: http://localhost:8080/ " << std::endl;
 
     // Accept a connection from a client
-    ClientSocket = accept(ListenSocket, (struct sockaddr*)&clientInfo, &clientInfoSize); 
+    ClientSocket = accept(ListenSocket, (struct sockaddr*)&clientInfo, &clientInfoSize); // accept() returns INVALID_SOCKET on failure, otherwise a new socket descriptor
     if (ClientSocket == INVALID_SOCKET) {
         int error = WSAGetLastError();
         std::cout << "Failed to accept connection on socket! " << error << std::endl;
 
         // Handle specific errors
-        if (error == WSAEINTR || error == WSAECONNRESET) {
+        if (error == WSAEINTR || error == WSAECONNRESET) { // WSAEINTR is the error code for a blocking call being interrupted, WSAECONNRESET is the error code for a connection being reset
             // continue;
         } else {
             std::cout << "Critical error, closing socket and exiting..." << std::endl;
@@ -240,13 +241,14 @@ SOCKET acceptConnections(SOCKET ListenSocket) {
 }
 
 std::string readFile(const std::string& filePath) {
-    std::ifstream file(filePath);
+    // Open the file
+    std::ifstream file(filePath); // ifstream is a class used to read from files
     if (!file.is_open()) {
         return "";
     }
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
+    std::stringstream buffer; // stringstream is a class used to manipulate strings
+    buffer << file.rdbuf(); // rdbuf() reads the entire file into the buffer
+    return buffer.str(); // str() returns the contents of the buffer as a string
 }
 
 int handleRequests(SOCKET ClientSocket) {
@@ -259,17 +261,16 @@ int handleRequests(SOCKET ClientSocket) {
     int iResult;
     
     // Receive data from the client
-    iResult = recv(ClientSocket, recvbuf, recvbuflen, 0); 
+    iResult = recv(ClientSocket, recvbuf, recvbuflen, 0); // recv() returns the number of bytes received, or -1 on error
 
     // If there are bytes received, print the number of bytes received, and send a response to the client
     if (iResult > 0) {
 
-
-
         // Convert the received data to a string
-        std::string requestData(recvbuf, iResult);
+        std::string requestData(recvbuf, iResult); 
+
         // Print the raw HTTP request
-        std::cout << "Received: "  << prettyLineBreak << requestData << std::endl;
+        std::cout << "Received the following HTTP request: "  << prettyLineBreak << requestData << prettyLineBreak << std::endl;
         
         // Create a HTTPRequest object to store the parsed request 
         HTTPRequest request;
@@ -294,7 +295,7 @@ int handleRequests(SOCKET ClientSocket) {
         // Specify the base directory where HTML files are stored
         std::string baseDirectory = "../pages/";
 
-        // Specify the filePath baed on the parsed path
+        // Specify the filePath baed on the parsed path from the HTTP request
         std::string filePath;
         if (request.path == "/" || request.path == "/index.html") {
             filePath = baseDirectory + "index.html";
@@ -320,17 +321,21 @@ int handleRequests(SOCKET ClientSocket) {
             return 0;
         }
 
-        // Create the HTTP response
+        // Create the HTTP response with the file content
         std::string httpResponse = "HTTP/1.1 200 OK\r\n"
                                    "Content-Type: text/html\r\n"
                                    "Content-Length: " + std::to_string(content.length()) + "\r\n\r\n" + content;
 
         // Log the complete HTTP response for debugging
-        std::cout << "Sending response:\n" << httpResponse << std::endl;
+        std::cout << prettyLineBreak << "The HTTP Reponse we are sending: " << httpResponse << prettyLineBreak << std::endl;
 
 
         // Send the response to the client
-        send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0);
+        send(ClientSocket, httpResponse.c_str(), httpResponse.length(), 0); // .c_str() returns a pointer to an array that contains a null-terminated sequence of characters (i.e., a C-string)
+
+        closesocket(ClientSocket);
+
+        std::cout << "Served file: " << filePath << std::endl;
 
     
     } else if (iResult == 0) {
@@ -355,14 +360,8 @@ void serverLoop(SOCKET ListenSocket) {
     while (running) {
         SOCKET ClientSocket = INVALID_SOCKET;
 
-        // Create a new execution thread to wait for connection from host
-        ClientSocket = acceptConnections(ListenSocket);
-
-        // TODO: Finish implementing multithreaded connection acceptions
-        // std::thread acceptThread(acceptConnections, ListenSocket);
-        // .detatch or .join()?
-        // acceptThread.join();
-
+        // Accept a connection from a client
+        ClientSocket = acceptConnections(ListenSocket); 
         if (ClientSocket == INVALID_SOCKET) {
             std::cout << "Failed to accept connection, INVALID SOCKET!" << std::endl;
             cleanup(ListenSocket);
@@ -373,10 +372,9 @@ void serverLoop(SOCKET ListenSocket) {
         std::cout << "Connection accepted!" << std::endl;
 
         // Create a new execution thread to handle the requests from the client
-        std::thread clientThread(handleRequests, ClientSocket);
-        // .detatch or .join()?
-        clientThread.detach();
-    
+        std::thread clientThread(handleRequests, ClientSocket); 
+        std::cout << "Client thread ID: " << clientThread.get_id() << std::endl;
+        clientThread.detach(); // .detach() allows the thread to run independently
     }
 }
 
@@ -425,14 +423,13 @@ int main () {
     std::cout << "Server thread ID: "<< serverThread.get_id() << std::endl;
 
     // Wait for user input to end the server
-    std::cout << "Press enter to end the server..." << std::endl;
     std::cin.get();
     running = false;
 
     // Close the listening socket
     closesocket(ListenSocket);
 
-    // serverThread.join();
+    serverThread.join();
 
     WSACleanup();
     return 0;
