@@ -18,7 +18,6 @@ Server::~Server() {
 }
 
 void Server::run() {
-    Networking networking;
     while (true) {
         std::string clientIP;
         SOCKET clientSocket = networking.acceptClient(listenSocket, clientIP);
@@ -46,7 +45,7 @@ void Server::handleClient(SOCKET clientSocket) {
         if (parser.parse(requestData, request)) {
             Utils::log("Parsed HTTPRequest:\nMethod: " + request.method + "\nPath: " + request.path);
             
-            std::string baseDirectory = "../pages/";
+            std::string baseDirectory = "../src/pages/";
             std::string filePath;
 
             if(request.path == "/") {

@@ -1,6 +1,6 @@
 #include "..\..\include\Networking.h"
 #include <iostream>
-
+#pragma comment(lib, "Ws2_32.lib")
 Networking::Networking() {
     initializeWinsock();
 }
@@ -23,8 +23,9 @@ void Networking::cleanup() {
 
 
 SOCKET Networking::createListenSocket(const std::string& port) {
-    struct addrinfo hints, *result;
-    memset(&hints, 0, sizeof(hints));
+    struct addrinfo hints;
+    struct addrinfo* result;
+    memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_INET; // IPv4
     hints.ai_socktype = SOCK_STREAM; // Socket for TCP
     hints.ai_protocol = IPPROTO_TCP; // TCP protocol
@@ -46,6 +47,16 @@ SOCKET Networking::createListenSocket(const std::string& port) {
     }
 
     freeaddrinfo(result);
+
+    iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
+        std::cerr << "Bind failed with error: " << WSAGetLastError() << std::endl;
+        closesocket(ListenSocket);
+        WSACleanup();
+        exit(1);
+    } else {
+        std::cout << "Socket bound successfully!" << std::endl;
+    }
 
     iResult = listen(ListenSocket, SOMAXCONN);
     if (iResult == SOCKET_ERROR) {

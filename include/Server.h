@@ -1,6 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include "Networking.h"
 #include <winsock2.h>
 #include <string>
 
@@ -14,6 +15,7 @@ private:
     std::string port;
     SOCKET listenSocket;
     void handleClient(SOCKET clientSocket);
+    Networking networking;
 };
 
 #endif
