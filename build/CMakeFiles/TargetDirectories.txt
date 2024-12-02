@@ -1,0 +1,3 @@
+C:/ark/cpp-http-server/build/CMakeFiles/server.dir
+C:/ark/cpp-http-server/build/CMakeFiles/edit_cache.dir
+C:/ark/cpp-http-server/build/CMakeFiles/rebuild_cache.dir

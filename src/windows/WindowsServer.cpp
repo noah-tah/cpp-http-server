@@ -250,7 +250,21 @@ std::string readFile(const std::string& filePath) {
     buffer << file.rdbuf(); // rdbuf() reads the entire file into the buffer
     return buffer.str(); // str() returns the contents of the buffer as a string
 }
-
+std::string getContentType(const std::string& filePath) {
+    size_t dot = filePath.find_last_of('.');
+    if (dot == std::string::npos) {
+        return "application/octet-stream";
+    }
+    std::string fileExtension = filePath.substr(dot + 1);
+    if (fileExtension == "html" || fileExtension == "htm") return "text/html";
+    if (fileExtension == "css") return "text/css";
+    if (fileExtension == "js") return "application/javascript";
+    if (fileExtension == "png") return "image/png";
+    if (fileExtension == "jpg" || fileExtension == "jpeg") return "image/jpeg";
+    if (fileExtension == "gif") return "image/gif";
+    if (fileExtension == "css") return "text/css";
+    return "application/octet-stream";
+}
 int handleRequests(SOCKET ClientSocket) {
 
     // Create the buffer which will be used to store the data received from the client
